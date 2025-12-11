@@ -325,7 +325,10 @@ export default function MusicPage() {
             {albums.map((album) => (
               <div
                 key={album.id}
-                onClick={() => setSelectedAlbum(album)}
+                onClick={() => {
+                  setSelectedAlbum(album)
+                  window.scrollTo({ top: 0, behavior: "smooth" })
+                }}
                 className="group cursor-pointer"
               >
                 <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-muted">
