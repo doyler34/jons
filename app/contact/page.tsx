@@ -53,21 +53,21 @@ export default function ContactPage() {
     <div className="min-h-screen bg-background pb-24">
       <Navigation />
 
-      <div className="max-w-4xl mx-auto px-4 md:px-8 lg:px-16 py-12">
-        <h1 className="text-5xl md:text-6xl font-black mb-2 text-foreground tracking-tighter animate-fade-in-up">
+      <div className="max-w-4xl mx-auto px-4 md:px-8 lg:px-16 py-6 md:py-12">
+        <h1 className="text-3xl sm:text-4xl md:text-6xl font-black mb-2 text-foreground tracking-tighter">
           BOOKING & FEATURES
         </h1>
-        <p className="text-primary text-lg mb-12 font-semibold animate-fade-in-up stagger-2">
+        <p className="text-primary text-base md:text-lg mb-6 md:mb-12 font-semibold">
           Summon the spirit. Let's collaborate.
         </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          {/* Contact Info */}
-          <div className="space-y-6 animate-slide-in-left">
-            <div className="bg-card rounded-lg p-8 border border-border hover-lift">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-12">
+          {/* Contact Info - Hidden on mobile, shown on desktop */}
+          <div className="hidden lg:block space-y-6">
+            <div className="bg-card rounded-lg p-6 md:p-8 border border-border">
               <div className="flex items-center gap-3 mb-3">
                 <Mic className="text-accent" size={20} />
-                <h3 className="text-lg font-bold text-accent">BOOKING INFO</h3>
+                <h3 className="text-base md:text-lg font-bold text-accent">BOOKING INFO</h3>
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 Interested in booking Jon Spirit for a feature, collaboration, or event? Submit the form with your
@@ -75,10 +75,10 @@ export default function ContactPage() {
               </p>
             </div>
 
-            <div className="bg-card rounded-lg p-8 border border-border hover-lift">
+            <div className="bg-card rounded-lg p-6 md:p-8 border border-border">
               <div className="flex items-center gap-3 mb-3">
                 <Clock className="text-primary" size={20} />
-                <h3 className="text-lg font-bold text-primary">RESPONSE TIME</h3>
+                <h3 className="text-base md:text-lg font-bold text-primary">RESPONSE TIME</h3>
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 We respond to all booking inquiries within 24-48 hours. Make sure your email address is correct so we
@@ -86,10 +86,10 @@ export default function ContactPage() {
               </p>
             </div>
 
-            <div className="bg-card rounded-lg p-8 border border-border hover-lift">
+            <div className="bg-card rounded-lg p-6 md:p-8 border border-border">
               <div className="flex items-center gap-3 mb-3">
                 <Newspaper className="text-accent" size={20} />
-                <h3 className="text-lg font-bold text-accent">PRESS & MEDIA</h3>
+                <h3 className="text-base md:text-lg font-bold text-accent">PRESS & MEDIA</h3>
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 For press inquiries, interviews, and media requests, select "Press" in the Subject dropdown.
@@ -98,9 +98,9 @@ export default function ContactPage() {
           </div>
 
           {/* Contact Form */}
-          <div className="lg:col-span-2 animate-slide-in-right">
-            <div className="bg-card rounded-lg p-8 border border-border">
-              <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="lg:col-span-2">
+            <div className="bg-card rounded-lg p-4 md:p-8 border border-border">
+              <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
                 <div className="animate-fade-in-up stagger-1">
                   <label htmlFor="name" className="block text-sm font-semibold text-foreground mb-2">
                     NAME

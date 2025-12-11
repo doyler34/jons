@@ -2,19 +2,19 @@ import Link from "next/link"
 
 export default function Footer() {
   return (
-    <footer className="bg-card border-t border-border py-12 md:py-16">
-      <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-          {/* Brand */}
-          <div>
-            <h3 className="text-xl font-bold mb-4 tracking-wide">JON SPIRIT</h3>
-            <p className="text-muted-foreground text-sm">Underground hip-hop artist. Spectral & Gritty.</p>
+    <footer className="bg-card border-t border-border py-8 md:py-16">
+      <div className="max-w-7xl mx-auto px-4 md:px-12 lg:px-16">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-8">
+          {/* Brand - Full width on mobile */}
+          <div className="col-span-2 md:col-span-1 mb-4 md:mb-0">
+            <h3 className="text-lg md:text-xl font-bold mb-2 md:mb-4 tracking-wide">JON SPIRIT</h3>
+            <p className="text-muted-foreground text-xs md:text-sm">Underground hip-hop artist. Spectral & Gritty.</p>
           </div>
 
           {/* Navigation */}
           <div>
-            <h4 className="font-bold mb-4 text-foreground">NAVIGATION</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <h4 className="font-bold mb-2 md:mb-4 text-foreground text-sm md:text-base">NAVIGATION</h4>
+            <ul className="space-y-1 md:space-y-2 text-xs md:text-sm text-muted-foreground">
               <li>
                 <Link href="/" className="hover:text-primary transition">
                   Home
@@ -38,32 +38,10 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Legal */}
-          <div>
-            <h4 className="font-bold mb-4 text-foreground">LEGAL</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>
-                <Link href="/privacy" className="hover:text-primary transition">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/cookies" className="hover:text-primary transition">
-                  Cookies
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="hover:text-primary transition">
-                  Terms of Use
-                </Link>
-              </li>
-            </ul>
-          </div>
-
           {/* Connect */}
           <div>
-            <h4 className="font-bold mb-4 text-foreground">CONNECT</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <h4 className="font-bold mb-2 md:mb-4 text-foreground text-sm md:text-base">CONNECT</h4>
+            <ul className="space-y-1 md:space-y-2 text-xs md:text-sm text-muted-foreground">
               <li>
                 <a href="mailto:info@jonspirit.com" className="hover:text-primary transition">
                   Email
@@ -86,11 +64,33 @@ export default function Footer() {
               </li>
             </ul>
           </div>
+
+          {/* Legal */}
+          <div className="col-span-2 md:col-span-1">
+            <h4 className="font-bold mb-2 md:mb-4 text-foreground text-sm md:text-base">LEGAL</h4>
+            <ul className="flex flex-wrap gap-x-4 gap-y-1 md:block md:space-y-2 text-xs md:text-sm text-muted-foreground">
+              <li>
+                <Link href="/privacy" className="hover:text-primary transition">
+                  Privacy
+                </Link>
+              </li>
+              <li>
+                <Link href="/cookies" className="hover:text-primary transition">
+                  Cookies
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms" className="hover:text-primary transition">
+                  Terms
+                </Link>
+              </li>
+            </ul>
+          </div>
         </div>
 
         {/* Copyright */}
-        <div className="border-t border-border pt-8">
-          <p className="text-center text-sm text-muted-foreground">© 2025 Jon Spirit. All rights reserved.</p>
+        <div className="border-t border-border pt-6 md:pt-8">
+          <p className="text-center text-xs md:text-sm text-muted-foreground">© 2025 Jon Spirit. All rights reserved.</p>
         </div>
       </div>
     </footer>

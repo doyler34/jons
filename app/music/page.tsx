@@ -101,9 +101,9 @@ export default function MusicPage() {
     <div className="min-h-screen bg-background pb-24">
       <Navigation />
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-16 py-12">
-        <h1 className="text-5xl md:text-6xl font-black mb-12 text-foreground tracking-tighter animate-fade-in-up">
-          MUSIC DASHBOARD
+      <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-16 py-6 md:py-12">
+        <h1 className="text-3xl sm:text-4xl md:text-6xl font-black mb-6 md:mb-12 text-foreground tracking-tighter">
+          MUSIC
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
