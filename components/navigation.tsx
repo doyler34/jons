@@ -23,8 +23,8 @@ export default function Navigation() {
         <div className="flex items-center justify-between h-16">
           <Link
             href="/"
-            className="text-xl font-bold tracking-wide text-foreground hover:text-primary transition-all duration-300 hover:drop-shadow-[0_0_10px_var(--primary)]"
-            style={{ fontFamily: "'EagleHorizon', 'Brush Script MT', cursive" }}
+            className="text-lg md:text-xl uppercase text-foreground hover:text-primary transition-all duration-300 hover:drop-shadow-[0_0_10px_var(--primary)]"
+            style={{ fontFamily: "'Clash Display', system-ui, sans-serif", fontWeight: 700, letterSpacing: "0.65px", lineHeight: 1.05 }}
           >
             JON SPIRIT
           </Link>

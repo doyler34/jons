@@ -26,11 +26,13 @@ export default function HeroSection({ onPlay, artistImage, trackName = "LATEST T
       {/* Content */}
       <div className="relative z-10 text-center px-4 max-w-4xl overflow-visible">
         <h1
-          className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black mb-6 md:mb-8 animate-write-on overflow-visible py-2 md:py-4"
+          className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl mb-6 md:mb-8 animate-write-on overflow-visible py-2 md:py-4 uppercase"
           style={{
-            fontFamily: "'EagleHorizon', 'Brush Script MT', 'Lucida Handwriting', cursive",
-            color: "#d8d0bf",
-            lineHeight: 1.2,
+            fontFamily: "'Clash Display', system-ui, sans-serif",
+            fontWeight: 700,
+            letterSpacing: "0.65px",
+            lineHeight: 1.05,
+            color: "#f5f5f5",
           }}
         >
           JON SPIRIT
