@@ -327,7 +327,7 @@ export default function MusicPage() {
                 key={album.id}
                 onClick={() => {
                   setSelectedAlbum(album)
-                  window.scrollTo({ top: 0, behavior: "smooth" })
+                  window.scrollTo(0, 0)
                 }}
                 className="group cursor-pointer"
               >
