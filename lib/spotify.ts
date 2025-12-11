@@ -179,7 +179,7 @@ export async function getAlbums(): Promise<SpotifyAlbum[]> {
 
   try {
     const response = await fetch(
-      `https://api.spotify.com/v1/artists/${ARTIST_ID}/albums?include_groups=album,single&market=US&limit=20`,
+      `https://api.spotify.com/v1/artists/${ARTIST_ID}/albums?include_groups=album,single&market=US&limit=50`,
       {
         headers: { Authorization: `Bearer ${token}` },
         next: { revalidate: 3600 },
@@ -190,6 +190,90 @@ export async function getAlbums(): Promise<SpotifyAlbum[]> {
     return data.items || FALLBACK_ALBUMS
   } catch {
     return FALLBACK_ALBUMS
+  }
+}
+
+export interface AlbumWithTracks extends SpotifyAlbum {
+  tracks: SpotifyTrack[]
+}
+
+export async function getAlbumTracks(albumId: string): Promise<SpotifyTrack[]> {
+  const token = await getAccessToken()
+  if (!token) return []
+
+  try {
+    const response = await fetch(
+      `https://api.spotify.com/v1/albums/${albumId}/tracks?market=US&limit=50`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        next: { revalidate: 3600 },
+      },
+    )
+    if (!response.ok) return []
+    const data = await response.json()
+    return data.items || []
+  } catch {
+    return []
+  }
+}
+
+export async function getAllAlbumsWithTracks(): Promise<AlbumWithTracks[]> {
+  const token = await getAccessToken()
+  if (!token) return []
+
+  try {
+    // Get all albums
+    const albumsResponse = await fetch(
+      `https://api.spotify.com/v1/artists/${ARTIST_ID}/albums?include_groups=album,single&market=US&limit=50`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        next: { revalidate: 3600 },
+      },
+    )
+    if (!albumsResponse.ok) return []
+    const albumsData = await albumsResponse.json()
+    const albums: SpotifyAlbum[] = albumsData.items || []
+
+    // Get tracks for each album
+    const albumsWithTracks: AlbumWithTracks[] = await Promise.all(
+      albums.map(async (album) => {
+        const tracksResponse = await fetch(
+          `https://api.spotify.com/v1/albums/${album.id}?market=US`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            next: { revalidate: 3600 },
+          },
+        )
+        if (!tracksResponse.ok) {
+          return { ...album, tracks: [] }
+        }
+        const albumData = await tracksResponse.json()
+        
+        // Map tracks to include album info and external_urls
+        const tracks: SpotifyTrack[] = (albumData.tracks?.items || []).map((track: {
+          id: string
+          name: string
+          duration_ms: number
+          preview_url: string | null
+          external_urls: { spotify: string }
+        }) => ({
+          ...track,
+          album: {
+            id: album.id,
+            name: album.name,
+            images: album.images,
+          },
+          external_urls: track.external_urls,
+        }))
+
+        return { ...album, tracks }
+      })
+    )
+
+    return albumsWithTracks
+  } catch (error) {
+    console.error("Error fetching albums with tracks:", error)
+    return []
   }
 }
 
