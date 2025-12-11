@@ -32,7 +32,7 @@ export default function HeroSection({ onPlay, artistImage, trackName = "LATEST T
             fontWeight: 700,
             letterSpacing: "0.65px",
             lineHeight: 1.05,
-            color: "#f5f5f5",
+            color: "#d8d0bf",
           }}
         >
           JON SPIRIT
