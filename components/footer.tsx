@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-8">
           {/* Brand - Full width on mobile */}
           <div className="col-span-2 md:col-span-1 mb-4 md:mb-0">
-            <h3 className="text-lg md:text-xl mb-2 md:mb-4 uppercase" style={{ fontFamily: "'Clash Display', system-ui, sans-serif", fontWeight: 700, letterSpacing: "0.65px", lineHeight: 1.05, color: "#d8d0bf" }}>JON SPIRIT</h3>
+            <h3 className="text-lg md:text-xl mb-2 md:mb-4 uppercase text-foreground" style={{ fontFamily: "'Clash Display', system-ui, sans-serif", fontWeight: 700, letterSpacing: "0.65px", lineHeight: 1.05 }}>JON SPIRIT</h3>
             <p className="text-muted-foreground text-xs md:text-sm">Underground hip-hop artist. Spectral & Gritty.</p>
           </div>
 
