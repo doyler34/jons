@@ -1,5 +1,6 @@
 "use client"
 import Navigation from "@/components/navigation"
+import Link from "next/link"
 import { Music, Instagram, Youtube, Cloud } from "lucide-react"
 
 const socialLinks = [
@@ -9,13 +10,15 @@ const socialLinks = [
     icon: Music,
     bgColor: "bg-[#1DB954]",
     href: "https://open.spotify.com/artist/2JvA93ASY6Tq4bISN2eh6Z",
+    external: true,
   },
   {
     name: "Instagram",
     description: "Behind-the-scenes & updates",
     icon: Instagram,
     bgColor: "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400",
-    href: "https://www.instagram.com/jonspirit.mp4/",
+    href: "/instagram",
+    external: false,
   },
   {
     name: "YouTube",
@@ -23,6 +26,7 @@ const socialLinks = [
     icon: Youtube,
     bgColor: "bg-[#FF0000]",
     href: "https://www.youtube.com/@Jonspiritprime",
+    external: true,
   },
   {
     name: "SoundCloud",
@@ -30,6 +34,7 @@ const socialLinks = [
     icon: Cloud,
     bgColor: "bg-[#FF5500]",
     href: "https://soundcloud.com/jonspirit",
+    external: true,
   },
 ]
 
@@ -49,24 +54,37 @@ export default function SocialsPage() {
         <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-6 max-w-2xl mx-auto">
           {socialLinks.map((social, index) => {
             const IconComponent = social.icon
-            return (
+            const cardContent = (
+              <div className="flex flex-col items-center justify-center text-center space-y-2 md:space-y-4">
+                <div className="p-3 md:p-4 bg-black/20 rounded-xl group-hover:bg-black/30 transition-colors">
+                  <IconComponent size={24} className="md:w-8 md:h-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm md:text-xl font-bold text-white mb-1">{social.name}</h3>
+                  <p className="text-xs md:text-sm text-white/80 hidden md:block">{social.description}</p>
+                </div>
+              </div>
+            )
+            const cardClass = `group rounded-xl p-4 md:p-8 ${social.bgColor} hover:shadow-lg hover:shadow-white/10 transition-all transform hover:scale-105 active:scale-95`
+            
+            return social.external ? (
               <a
                 key={index}
                 href={social.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`group rounded-xl p-4 md:p-8 ${social.bgColor} hover:shadow-lg hover:shadow-white/10 transition-all transform hover:scale-105 active:scale-95`}
+                className={cardClass}
               >
-                <div className="flex flex-col items-center justify-center text-center space-y-2 md:space-y-4">
-                  <div className="p-3 md:p-4 bg-black/20 rounded-xl group-hover:bg-black/30 transition-colors">
-                    <IconComponent size={24} className="md:w-8 md:h-8 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm md:text-xl font-bold text-white mb-1">{social.name}</h3>
-                    <p className="text-xs md:text-sm text-white/80 hidden md:block">{social.description}</p>
-                  </div>
-                </div>
+                {cardContent}
               </a>
+            ) : (
+              <Link
+                key={index}
+                href={social.href}
+                className={cardClass}
+              >
+                {cardContent}
+              </Link>
             )
           })}
         </div>
