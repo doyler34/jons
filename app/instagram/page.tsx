@@ -27,7 +27,7 @@ export default function InstagramPage() {
               borderRadius: "5px", 
               width: "100%",
               maxWidth: "500px",
-              height: "600px"
+              height: "800px"
             }} 
             title="Posts from Instagram"
           />
