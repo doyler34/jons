@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 import { cookies } from "next/headers"
 
+// Disable caching so admin changes show immediately
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 async function isAuthenticated() {
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
@@ -27,7 +31,9 @@ export async function GET() {
       SELECT * FROM manual_songs ORDER BY created_at DESC
     `
 
-    return NextResponse.json({ songs: result.rows })
+    const response = NextResponse.json({ songs: result.rows })
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+    return response
   } catch (error) {
     console.error("Failed to fetch manual songs:", error)
     return NextResponse.json({ songs: [] })

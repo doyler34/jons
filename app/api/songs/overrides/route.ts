@@ -2,6 +2,10 @@ import { sql } from "@vercel/postgres"
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 
+// Disable caching so admin changes show immediately
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 // Check admin auth
 async function isAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies()
@@ -52,7 +56,9 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ overrides })
+    const response = NextResponse.json({ overrides })
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+    return response
   } catch (error) {
     console.error("Failed to fetch overrides:", error)
     return NextResponse.json({ overrides: {} })
