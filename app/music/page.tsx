@@ -83,19 +83,23 @@ export default function MusicPage() {
           setAlbums(spotifyData.albumsWithTracks)
         }
 
-        // Set top tracks
+        // Set top tracks with overrides applied
         if (spotifyData.topTracks) {
-          const formatted = spotifyData.topTracks.map((track: SpotifyTrack) => ({
-            id: track.id,
-            title: track.name,
-            duration: formatDuration(track.duration_ms),
-            durationMs: track.duration_ms,
-            image: track.album.images[0]?.url || "/placeholder.svg",
-            previewUrl: track.preview_url,
-            spotifyUrl: track.external_urls.spotify,
-            albumName: track.album.name,
-            albumId: track.album.id,
-          }))
+          const songOverrides = overridesData.overrides || {}
+          const formatted = spotifyData.topTracks.map((track: SpotifyTrack) => {
+            const override = songOverrides[track.id]
+            return {
+              id: track.id,
+              title: track.name,
+              duration: formatDuration(track.duration_ms),
+              durationMs: track.duration_ms,
+              image: override?.cover_url || track.album.images[0]?.url || "/placeholder.svg",
+              previewUrl: override?.audio_url || track.preview_url,
+              spotifyUrl: track.external_urls.spotify,
+              albumName: track.album.name,
+              albumId: track.album.id,
+            }
+          })
           setTopTracks(formatted)
           if (formatted.length > 0) {
             setCurrentTrack(formatted[0])
