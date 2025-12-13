@@ -12,6 +12,12 @@ export const metadata: Metadata = {
   title: "JON SPIRIT - Underground Hip-Hop Artist",
   description: "Stream FEASTAHZ and more from Jon Spirit. High-energy underground hip-hop.",
   generator: "v0.app",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Jon Spirit",
+  },
   icons: {
     icon: [
       {
@@ -28,6 +34,9 @@ export const metadata: Metadata = {
       },
     ],
     apple: "/apple-icon.png",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 }
 

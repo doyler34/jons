@@ -66,6 +66,13 @@ export default function MusicPage() {
   const [loading, setLoading] = useState(true)
   const [overrides, setOverrides] = useState<Record<string, SongOverride>>({})
 
+  // Save current track to localStorage for iOS PWA persistence
+  useEffect(() => {
+    if (currentTrack) {
+      localStorage.setItem("jonspirit_current_track", JSON.stringify(currentTrack))
+    }
+  }, [currentTrack])
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -97,7 +104,23 @@ export default function MusicPage() {
             albumId: track.album.id,
           }))
           setTopTracks(formatted)
-          if (formatted.length > 0) {
+          
+          // Try to restore saved track from localStorage (for iOS PWA)
+          const savedTrack = localStorage.getItem("jonspirit_current_track")
+          if (savedTrack) {
+            try {
+              const parsed = JSON.parse(savedTrack)
+              // Find matching track in the loaded data to ensure it's still valid
+              const matchingTrack = formatted.find((t: TrackDisplay) => t.id === parsed.id)
+              if (matchingTrack) {
+                setCurrentTrack(matchingTrack)
+              } else {
+                setCurrentTrack(formatted[0])
+              }
+            } catch {
+              setCurrentTrack(formatted[0])
+            }
+          } else if (formatted.length > 0) {
             setCurrentTrack(formatted[0])
           }
         }

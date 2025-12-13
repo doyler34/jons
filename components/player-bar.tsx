@@ -69,6 +69,25 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
     }
   }, [isPlaying, currentTrack.previewUrl])
 
+  // Media Session API for iOS/Android control center
+  useEffect(() => {
+    if ("mediaSession" in navigator && currentTrack.title) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentTrack.title,
+        artist: "Jon Spirit",
+        album: "Jon Spirit",
+        artwork: currentTrack.image ? [
+          { src: currentTrack.image, sizes: "512x512", type: "image/jpeg" }
+        ] : []
+      })
+
+      navigator.mediaSession.setActionHandler("play", () => setIsPlaying(true))
+      navigator.mediaSession.setActionHandler("pause", () => setIsPlaying(false))
+      navigator.mediaSession.setActionHandler("seekbackward", skipBackward)
+      navigator.mediaSession.setActionHandler("seekforward", skipForward)
+    }
+  }, [currentTrack.title, currentTrack.image, setIsPlaying])
+
   // Format time as m:ss
   const formatTime = useCallback((time: number) => {
     if (!time || isNaN(time)) return "0:00"
