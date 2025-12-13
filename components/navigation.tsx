@@ -11,6 +11,7 @@ export default function Navigation() {
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/music", label: "Music" },
+    { href: "/events", label: "Events" },
     { href: "/socials", label: "Socials" },
     { href: "/contact", label: "Contact" },
   ]

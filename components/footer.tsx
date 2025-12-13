@@ -1,6 +1,44 @@
+"use client"
+
 import Link from "next/link"
+import { useEffect, useState } from "react"
+
+interface Settings {
+  instagram_url?: string
+  twitter_url?: string
+  tiktok_url?: string
+  youtube_url?: string
+  spotify_url?: string
+  apple_music_url?: string
+  soundcloud_url?: string
+  contact_email?: string
+}
 
 export default function Footer() {
+  const [settings, setSettings] = useState<Settings>({})
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch("/api/settings")
+        if (res.ok) {
+          const data = await res.json()
+          setSettings(data.settings || {})
+        }
+      } catch (error) {
+        console.error("Failed to fetch settings:", error)
+      }
+    }
+
+    fetchSettings()
+  }, [])
+
+  // Default to hardcoded values if settings not loaded
+  const instagramUrl = settings.instagram_url || "https://www.instagram.com/jonspirit.mp4/"
+  const youtubeUrl = settings.youtube_url || "https://www.youtube.com/@Jonspiritprime"
+  const spotifyUrl = settings.spotify_url || "https://open.spotify.com/artist/2JvA93ASY6Tq4bISN2eh6Z"
+  const contactEmail = settings.contact_email || "info@jonspirit.com"
+
   return (
     <footer className="bg-card border-t border-border py-8 md:py-16">
       <div className="max-w-7xl mx-auto px-4 md:px-12 lg:px-16">
@@ -26,6 +64,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/events" className="hover:text-primary transition">
+                  Events
+                </Link>
+              </li>
+              <li>
                 <Link href="/socials" className="hover:text-primary transition">
                   Socials
                 </Link>
@@ -43,25 +86,45 @@ export default function Footer() {
             <h4 className="font-bold mb-2 md:mb-4 text-foreground text-sm md:text-base">CONNECT</h4>
             <ul className="space-y-1 md:space-y-2 text-xs md:text-sm text-muted-foreground">
               <li>
-                <a href="mailto:info@jonspirit.com" className="hover:text-primary transition">
+                <a href={`mailto:${contactEmail}`} className="hover:text-primary transition">
                   Email
                 </a>
               </li>
-              <li>
-                <a href="https://www.instagram.com/jonspirit.mp4/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition">
-                  Instagram
-                </a>
-              </li>
-              <li>
-                <a href="https://www.youtube.com/@Jonspiritprime" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition">
-                  YouTube
-                </a>
-              </li>
-              <li>
-                <a href="https://open.spotify.com/artist/2JvA93ASY6Tq4bISN2eh6Z" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition">
-                  Spotify
-                </a>
-              </li>
+              {instagramUrl && (
+                <li>
+                  <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition">
+                    Instagram
+                  </a>
+                </li>
+              )}
+              {youtubeUrl && (
+                <li>
+                  <a href={youtubeUrl} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition">
+                    YouTube
+                  </a>
+                </li>
+              )}
+              {spotifyUrl && (
+                <li>
+                  <a href={spotifyUrl} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition">
+                    Spotify
+                  </a>
+                </li>
+              )}
+              {settings.tiktok_url && (
+                <li>
+                  <a href={settings.tiktok_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition">
+                    TikTok
+                  </a>
+                </li>
+              )}
+              {settings.twitter_url && (
+                <li>
+                  <a href={settings.twitter_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition">
+                    Twitter / X
+                  </a>
+                </li>
+              )}
             </ul>
           </div>
 

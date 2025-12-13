@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff } from "lucide-react"
+import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink } from "lucide-react"
 
 interface Subscriber {
   id: string
@@ -49,9 +49,24 @@ interface ManualSong {
   created_at: string
 }
 
+interface Event {
+  id: number
+  title: string
+  venue: string
+  city: string
+  date: string
+  time: string | null
+  ticket_url: string | null
+  description: string | null
+  image_url: string | null
+  is_past: boolean
+  created_at: string
+  updated_at: string
+}
+
 const EMOJI_LIST = ["🔥", "🎵", "🎤", "💿", "🎧", "⚡", "💀", "👻", "🖤", "❤️", "🚨", "📢", "🆕", "✨", "💯", "🙏"]
 
-type TabType = "music" | "newsletter" | "subscribers"
+type TabType = "music" | "newsletter" | "subscribers" | "events" | "settings" | "analytics"
 
 export default function AdminDashboard() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
@@ -94,6 +109,30 @@ export default function AdminDashboard() {
   const [sendStatus, setSendStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
 
+  // Events state
+  const [events, setEvents] = useState<Event[]>([])
+  const [loadingEvents, setLoadingEvents] = useState(false)
+  const [showEventModal, setShowEventModal] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null)
+  const [eventForm, setEventForm] = useState({
+    title: "",
+    venue: "",
+    city: "",
+    date: "",
+    time: "",
+    ticket_url: "",
+    description: "",
+    is_past: false,
+  })
+  const [eventStatus, setEventStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
+  const [savingEvent, setSavingEvent] = useState(false)
+
+  // Settings state
+  const [siteSettings, setSiteSettings] = useState<Record<string, string>>({})
+  const [loadingSettings, setLoadingSettings] = useState(false)
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [settingsStatus, setSettingsStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
+
   useEffect(() => {
     checkAuth()
   }, [])
@@ -106,6 +145,8 @@ export default function AdminDashboard() {
         fetchMusic()
         fetchSubscribers()
         fetchManualSongs()
+        fetchEvents()
+        fetchSettings()
       } else {
         router.push("/spirit-admin-x7k9/login")
       }
@@ -449,6 +490,189 @@ export default function AdminDashboard() {
     }
   }
 
+  // Fetch events
+  const fetchEvents = async () => {
+    setLoadingEvents(true)
+    try {
+      const res = await fetch("/api/events")
+      if (res.ok) {
+        const data = await res.json()
+        setEvents(data.events || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch events:", error)
+    } finally {
+      setLoadingEvents(false)
+    }
+  }
+
+  // Save event (create or update)
+  const saveEvent = async () => {
+    if (!eventForm.title || !eventForm.venue || !eventForm.city || !eventForm.date) {
+      setEventStatus({ type: "error", message: "Title, venue, city, and date are required" })
+      return
+    }
+
+    setSavingEvent(true)
+    setEventStatus(null)
+
+    try {
+      const url = editingEvent ? `/api/events/${editingEvent.id}` : "/api/events"
+      const method = editingEvent ? "PUT" : "POST"
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(eventForm),
+      })
+
+      if (!res.ok) throw new Error("Failed to save event")
+
+      const data = await res.json()
+      
+      if (editingEvent) {
+        setEvents(prev => prev.map(e => e.id === editingEvent.id ? data.event : e))
+        setEventStatus({ type: "success", message: "Event updated!" })
+      } else {
+        setEvents(prev => [data.event, ...prev])
+        setEventStatus({ type: "success", message: "Event created!" })
+      }
+
+      setShowEventModal(false)
+      setEditingEvent(null)
+      setEventForm({ title: "", venue: "", city: "", date: "", time: "", ticket_url: "", description: "", is_past: false })
+    } catch (error) {
+      console.error("Save event error:", error)
+      setEventStatus({ type: "error", message: "Failed to save event" })
+    } finally {
+      setSavingEvent(false)
+    }
+  }
+
+  // Delete event
+  const deleteEvent = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this event?")) return
+
+    try {
+      const res = await fetch(`/api/events/${id}`, { method: "DELETE" })
+      if (res.ok) {
+        setEvents(prev => prev.filter(e => e.id !== id))
+        setEventStatus({ type: "success", message: "Event deleted" })
+      }
+    } catch (error) {
+      console.error("Delete event error:", error)
+      setEventStatus({ type: "error", message: "Failed to delete event" })
+    }
+  }
+
+  // Open edit modal
+  const openEditEvent = (event: Event) => {
+    setEditingEvent(event)
+    setEventForm({
+      title: event.title,
+      venue: event.venue,
+      city: event.city,
+      date: event.date.split("T")[0],
+      time: event.time || "",
+      ticket_url: event.ticket_url || "",
+      description: event.description || "",
+      is_past: event.is_past,
+    })
+    setShowEventModal(true)
+  }
+
+  // Open new event modal
+  const openNewEvent = () => {
+    setEditingEvent(null)
+    setEventForm({ title: "", venue: "", city: "", date: "", time: "", ticket_url: "", description: "", is_past: false })
+    setShowEventModal(true)
+  }
+
+  // Fetch site settings
+  const fetchSettings = async () => {
+    setLoadingSettings(true)
+    try {
+      const res = await fetch("/api/settings")
+      if (res.ok) {
+        const data = await res.json()
+        setSiteSettings(data.settings || {})
+      }
+    } catch (error) {
+      console.error("Failed to fetch settings:", error)
+    } finally {
+      setLoadingSettings(false)
+    }
+  }
+
+  // Save site settings
+  const saveSettings = async () => {
+    setSavingSettings(true)
+    setSettingsStatus(null)
+
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings: siteSettings }),
+      })
+
+      if (!res.ok) throw new Error("Failed to save settings")
+      
+      setSettingsStatus({ type: "success", message: "Settings saved successfully!" })
+    } catch (error) {
+      console.error("Save settings error:", error)
+      setSettingsStatus({ type: "error", message: "Failed to save settings" })
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  // Update a single setting
+  const updateSetting = (key: string, value: string) => {
+    setSiteSettings(prev => ({ ...prev, [key]: value }))
+  }
+
+  // Delete a subscriber (GDPR)
+  const deleteSubscriber = async (id: string, email: string) => {
+    if (!confirm(`Delete subscriber "${email}"? This action cannot be undone (GDPR deletion).`)) return
+
+    try {
+      const res = await fetch(`/api/admin/subscribers/${id}`, { method: "DELETE" })
+      if (res.ok) {
+        setSubscribers(prev => prev.filter(s => s.id !== id))
+        setSubscriberCount(prev => (prev ?? 1) - 1)
+      } else {
+        alert("Failed to delete subscriber")
+      }
+    } catch (error) {
+      console.error("Delete subscriber error:", error)
+      alert("Failed to delete subscriber")
+    }
+  }
+
+  // Export subscribers as CSV (GDPR)
+  const exportSubscribers = async () => {
+    try {
+      const res = await fetch("/api/admin/subscribers/export")
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `subscribers_${new Date().toISOString().split("T")[0]}.csv`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+      } else {
+        alert("Failed to export subscribers")
+      }
+    } catch (error) {
+      console.error("Export subscribers error:", error)
+      alert("Failed to export subscribers")
+    }
+  }
+
   // Get singles (albums with only 1 track)
   const singles = albums.filter(a => a.tracks?.length === 1)
   const multiTrackAlbums = albums.filter(a => (a.tracks?.length || 0) > 1)
@@ -550,6 +774,40 @@ export default function AdminDashboard() {
               <Users size={18} />
               Subscribers
               <span className="bg-muted px-2 py-0.5 rounded text-xs">{subscriberCount ?? "—"}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("events")}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "events"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Calendar size={18} />
+              Events
+              <span className="bg-muted px-2 py-0.5 rounded text-xs">{events.length}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("settings")}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "settings"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Settings size={18} />
+              Settings
+            </button>
+            <button
+              onClick={() => setActiveTab("analytics")}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "analytics"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <BarChart3 size={18} />
+              Analytics
             </button>
           </div>
         </div>
@@ -1191,14 +1449,18 @@ export default function AdminDashboard() {
         {/* SUBSCRIBERS TAB */}
         {activeTab === "subscribers" && (
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
               <div>
                 <h2 className="text-2xl font-bold">Subscribers</h2>
                 <p className="text-muted-foreground mt-1">
                   {subscriberCount || 0} total subscribers
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <Button onClick={exportSubscribers} variant="outline" className="gap-2">
+                  <Download size={16} />
+                  Export CSV
+                </Button>
                 <Button onClick={fetchSubscribers} variant="outline" disabled={loadingSubscribers} className="gap-2">
                   <RefreshCw size={16} className={loadingSubscribers ? "animate-spin" : ""} />
                   Refresh
@@ -1211,6 +1473,13 @@ export default function AdminDashboard() {
                   <Button variant="outline">Open MailerLite →</Button>
                 </a>
               </div>
+            </div>
+
+            {/* GDPR Notice */}
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-400">
+                <strong>GDPR Compliance:</strong> Use the delete button to permanently remove subscriber data upon request. Export CSV for data portability requests.
+              </p>
             </div>
 
             <div className="bg-card border border-border rounded-lg">
@@ -1229,6 +1498,7 @@ export default function AdminDashboard() {
                         <th className="p-4 font-medium">Email</th>
                         <th className="p-4 font-medium">Status</th>
                         <th className="p-4 font-medium">Joined</th>
+                        <th className="p-4 font-medium text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="text-sm">
@@ -1247,12 +1517,626 @@ export default function AdminDashboard() {
                           <td className="p-4 text-muted-foreground">
                             {new Date(sub.created_at).toLocaleDateString()}
                           </td>
+                          <td className="p-4 text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => deleteSubscriber(sub.id, sub.email)}
+                              className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* EVENTS TAB */}
+        {activeTab === "events" && (
+          <div className="space-y-6">
+            {/* Events Header */}
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h2 className="text-2xl font-bold">Events & Shows</h2>
+                <p className="text-muted-foreground mt-1">
+                  {events.filter(e => !e.is_past).length} upcoming, {events.filter(e => e.is_past).length} past shows
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={openNewEvent} className="gap-2 bg-primary">
+                  <Plus size={16} />
+                  Add Event
+                </Button>
+                <Button onClick={fetchEvents} variant="outline" disabled={loadingEvents} className="gap-2">
+                  <RefreshCw size={16} className={loadingEvents ? "animate-spin" : ""} />
+                  Refresh
+                </Button>
+              </div>
+            </div>
+
+            {eventStatus && (
+              <div className={`p-4 rounded-lg ${eventStatus.type === "error" ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
+                {eventStatus.message}
+              </div>
+            )}
+
+            {loadingEvents ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <Loader2 size={32} className="animate-spin mx-auto mb-4" />
+                Loading events...
+              </div>
+            ) : events.length === 0 ? (
+              <div className="bg-card border border-border rounded-lg p-16 text-center">
+                <Calendar size={48} className="mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">No events yet</h3>
+                <p className="text-muted-foreground mb-4">Add your first event or show</p>
+                <Button onClick={openNewEvent} className="gap-2">
+                  <Plus size={16} />
+                  Add Event
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Upcoming Events */}
+                {events.filter(e => !e.is_past).length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                      Upcoming Shows
+                    </h3>
+                    <div className="bg-card border border-border rounded-lg divide-y divide-border">
+                      {events.filter(e => !e.is_past).map(event => (
+                        <div key={event.id} className="p-4 flex items-center gap-4 hover:bg-muted/20 transition-colors">
+                          <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/5 rounded-lg flex flex-col items-center justify-center">
+                            <span className="text-xs text-muted-foreground uppercase">
+                              {new Date(event.date).toLocaleDateString("en-US", { month: "short" })}
+                            </span>
+                            <span className="text-xl font-bold">
+                              {new Date(event.date).getDate()}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold truncate">{event.title}</h4>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                              <MapPin size={14} />
+                              <span className="truncate">{event.venue}, {event.city}</span>
+                            </div>
+                            {event.time && (
+                              <p className="text-xs text-muted-foreground mt-1">{event.time}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-2 flex-shrink-0">
+                            {event.ticket_url && (
+                              <a href={event.ticket_url} target="_blank" rel="noopener noreferrer">
+                                <Button size="sm" variant="outline" className="gap-1">
+                                  <Ticket size={14} />
+                                  Tickets
+                                </Button>
+                              </a>
+                            )}
+                            <Button size="sm" variant="outline" onClick={() => openEditEvent(event)}>
+                              <Edit size={14} />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => deleteEvent(event.id)} className="text-red-400 hover:text-red-300">
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Past Events */}
+                {events.filter(e => e.is_past).length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-muted-foreground">
+                      <span className="w-2 h-2 bg-muted-foreground rounded-full"></span>
+                      Past Shows
+                    </h3>
+                    <div className="bg-card border border-border rounded-lg divide-y divide-border opacity-70">
+                      {events.filter(e => e.is_past).map(event => (
+                        <div key={event.id} className="p-4 flex items-center gap-4 hover:bg-muted/20 transition-colors">
+                          <div className="flex-shrink-0 w-16 h-16 bg-muted rounded-lg flex flex-col items-center justify-center">
+                            <span className="text-xs text-muted-foreground uppercase">
+                              {new Date(event.date).toLocaleDateString("en-US", { month: "short" })}
+                            </span>
+                            <span className="text-xl font-bold text-muted-foreground">
+                              {new Date(event.date).getDate()}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold truncate">{event.title}</h4>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                              <MapPin size={14} />
+                              <span className="truncate">{event.venue}, {event.city}</span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 flex-shrink-0">
+                            <Button size="sm" variant="outline" onClick={() => openEditEvent(event)}>
+                              <Edit size={14} />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => deleteEvent(event.id)} className="text-red-400 hover:text-red-300">
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Event Modal */}
+            {showEventModal && (
+              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="bg-card border border-border rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                  <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card">
+                    <h3 className="text-lg font-bold">{editingEvent ? "Edit Event" : "Add New Event"}</h3>
+                    <button onClick={() => setShowEventModal(false)} className="text-muted-foreground hover:text-foreground">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Event Title *</label>
+                      <Input
+                        type="text"
+                        placeholder="e.g., Jon Spirit Live"
+                        value={eventForm.title}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Venue *</label>
+                        <Input
+                          type="text"
+                          placeholder="e.g., The Warehouse"
+                          value={eventForm.venue}
+                          onChange={(e) => setEventForm(prev => ({ ...prev, venue: e.target.value }))}
+                          className="bg-input border-border"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">City *</label>
+                        <Input
+                          type="text"
+                          placeholder="e.g., London, UK"
+                          value={eventForm.city}
+                          onChange={(e) => setEventForm(prev => ({ ...prev, city: e.target.value }))}
+                          className="bg-input border-border"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Date *</label>
+                        <Input
+                          type="date"
+                          value={eventForm.date}
+                          onChange={(e) => setEventForm(prev => ({ ...prev, date: e.target.value }))}
+                          className="bg-input border-border"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Time <span className="text-muted-foreground font-normal">(optional)</span></label>
+                        <Input
+                          type="text"
+                          placeholder="e.g., 8:00 PM"
+                          value={eventForm.time}
+                          onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
+                          className="bg-input border-border"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Ticket Link <span className="text-muted-foreground font-normal">(optional)</span></label>
+                      <Input
+                        type="url"
+                        placeholder="https://tickets.example.com/..."
+                        value={eventForm.ticket_url}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, ticket_url: e.target.value }))}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Description <span className="text-muted-foreground font-normal">(optional)</span></label>
+                      <textarea
+                        placeholder="Additional details about the event..."
+                        value={eventForm.description}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, description: e.target.value }))}
+                        rows={3}
+                        className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 pt-2">
+                      <input
+                        type="checkbox"
+                        id="isPast"
+                        checked={eventForm.is_past}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, is_past: e.target.checked }))}
+                        className="w-4 h-4 accent-primary"
+                      />
+                      <label htmlFor="isPast" className="text-sm">
+                        Mark as past show
+                      </label>
+                    </div>
+                  </div>
+                  <div className="p-6 border-t border-border flex gap-3 justify-end sticky bottom-0 bg-card">
+                    <Button variant="outline" onClick={() => setShowEventModal(false)}>Cancel</Button>
+                    <Button
+                      onClick={saveEvent}
+                      disabled={savingEvent || !eventForm.title || !eventForm.venue || !eventForm.city || !eventForm.date}
+                      className="gap-2"
+                    >
+                      {savingEvent ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                      {savingEvent ? "Saving..." : editingEvent ? "Update Event" : "Create Event"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SETTINGS TAB */}
+        {activeTab === "settings" && (
+          <div className="max-w-3xl">
+            {/* Settings Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">Site Settings</h2>
+                <p className="text-muted-foreground mt-1">
+                  Manage social links, streaming links, and SEO settings
+                </p>
+              </div>
+              <Button onClick={saveSettings} disabled={savingSettings} className="gap-2">
+                {savingSettings ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                {savingSettings ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+
+            {settingsStatus && (
+              <div className={`p-4 rounded-lg mb-6 ${settingsStatus.type === "error" ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
+                {settingsStatus.message}
+              </div>
+            )}
+
+            {loadingSettings ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <Loader2 size={32} className="animate-spin mx-auto mb-4" />
+                Loading settings...
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Social Links */}
+                <div className="bg-card border border-border rounded-lg p-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Globe size={20} className="text-primary" />
+                    Social Links
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Instagram URL</label>
+                      <Input
+                        type="url"
+                        placeholder="https://instagram.com/..."
+                        value={siteSettings.instagram_url || ""}
+                        onChange={(e) => updateSetting("instagram_url", e.target.value)}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Twitter / X URL</label>
+                      <Input
+                        type="url"
+                        placeholder="https://twitter.com/..."
+                        value={siteSettings.twitter_url || ""}
+                        onChange={(e) => updateSetting("twitter_url", e.target.value)}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">TikTok URL</label>
+                      <Input
+                        type="url"
+                        placeholder="https://tiktok.com/@..."
+                        value={siteSettings.tiktok_url || ""}
+                        onChange={(e) => updateSetting("tiktok_url", e.target.value)}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">YouTube URL</label>
+                      <Input
+                        type="url"
+                        placeholder="https://youtube.com/@..."
+                        value={siteSettings.youtube_url || ""}
+                        onChange={(e) => updateSetting("youtube_url", e.target.value)}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Streaming Links */}
+                <div className="bg-card border border-border rounded-lg p-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Link2 size={20} className="text-primary" />
+                    Streaming Platforms
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Spotify Artist URL</label>
+                      <Input
+                        type="url"
+                        placeholder="https://open.spotify.com/artist/..."
+                        value={siteSettings.spotify_url || ""}
+                        onChange={(e) => updateSetting("spotify_url", e.target.value)}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Apple Music URL</label>
+                      <Input
+                        type="url"
+                        placeholder="https://music.apple.com/artist/..."
+                        value={siteSettings.apple_music_url || ""}
+                        onChange={(e) => updateSetting("apple_music_url", e.target.value)}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">SoundCloud URL</label>
+                      <Input
+                        type="url"
+                        placeholder="https://soundcloud.com/..."
+                        value={siteSettings.soundcloud_url || ""}
+                        onChange={(e) => updateSetting("soundcloud_url", e.target.value)}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEO Settings */}
+                <div className="bg-card border border-border rounded-lg p-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Search size={20} className="text-primary" />
+                    SEO Settings
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Site Title</label>
+                      <Input
+                        type="text"
+                        placeholder="Jon Spirit - Official Website"
+                        value={siteSettings.site_title || ""}
+                        onChange={(e) => updateSetting("site_title", e.target.value)}
+                        className="bg-input border-border"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Appears in browser tabs and search results</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Site Description</label>
+                      <textarea
+                        placeholder="Official website of Jon Spirit..."
+                        value={siteSettings.site_description || ""}
+                        onChange={(e) => updateSetting("site_description", e.target.value)}
+                        rows={3}
+                        className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Used for search engine results</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact */}
+                <div className="bg-card border border-border rounded-lg p-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Mail size={20} className="text-primary" />
+                    Contact
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Contact Email</label>
+                      <Input
+                        type="email"
+                        placeholder="contact@example.com"
+                        value={siteSettings.contact_email || ""}
+                        onChange={(e) => updateSetting("contact_email", e.target.value)}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Save Button (bottom) */}
+                <div className="flex justify-end">
+                  <Button onClick={saveSettings} disabled={savingSettings} className="gap-2">
+                    {savingSettings ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    {savingSettings ? "Saving..." : "Save All Changes"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ANALYTICS TAB */}
+        {activeTab === "analytics" && (
+          <div className="space-y-6">
+            {/* Analytics Header */}
+            <div>
+              <h2 className="text-2xl font-bold">Analytics Overview</h2>
+              <p className="text-muted-foreground mt-1">
+                Site performance and engagement metrics
+              </p>
+            </div>
+
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-card border border-border rounded-lg p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Music size={20} className="text-primary" />
+                  </div>
+                  <span className="text-sm text-muted-foreground">Total Songs</span>
+                </div>
+                <p className="text-3xl font-bold">{totalTracks}</p>
+              </div>
+
+              <div className="bg-card border border-border rounded-lg p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-green-500/10 rounded-lg">
+                    <Users size={20} className="text-green-500" />
+                  </div>
+                  <span className="text-sm text-muted-foreground">Subscribers</span>
+                </div>
+                <p className="text-3xl font-bold">{subscriberCount ?? 0}</p>
+              </div>
+
+              <div className="bg-card border border-border rounded-lg p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-blue-500/10 rounded-lg">
+                    <Calendar size={20} className="text-blue-500" />
+                  </div>
+                  <span className="text-sm text-muted-foreground">Upcoming Events</span>
+                </div>
+                <p className="text-3xl font-bold">{events.filter(e => !e.is_past).length}</p>
+              </div>
+
+              <div className="bg-card border border-border rounded-lg p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-purple-500/10 rounded-lg">
+                    <Disc size={20} className="text-purple-500" />
+                  </div>
+                  <span className="text-sm text-muted-foreground">Albums/Releases</span>
+                </div>
+                <p className="text-3xl font-bold">{albums.length}</p>
+              </div>
+            </div>
+
+            {/* External Analytics Links */}
+            <div className="bg-card border border-border rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <TrendingUp size={20} className="text-primary" />
+                Detailed Analytics
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                For detailed visitor analytics, page views, and engagement metrics, use the external dashboards below.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <a
+                  href="https://vercel.com/dashboard"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors group"
+                >
+                  <div className="p-2 bg-foreground/10 rounded-lg">
+                    <BarChart3 size={20} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium group-hover:text-primary transition-colors">Vercel Analytics</p>
+                    <p className="text-xs text-muted-foreground">Page views & performance</p>
+                  </div>
+                  <ExternalLink size={16} className="text-muted-foreground" />
+                </a>
+
+                <a
+                  href="https://dashboard.mailerlite.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors group"
+                >
+                  <div className="p-2 bg-green-500/10 rounded-lg">
+                    <Mail size={20} className="text-green-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium group-hover:text-primary transition-colors">MailerLite</p>
+                    <p className="text-xs text-muted-foreground">Email open & click rates</p>
+                  </div>
+                  <ExternalLink size={16} className="text-muted-foreground" />
+                </a>
+
+                <a
+                  href="https://artists.spotify.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors group"
+                >
+                  <div className="p-2 bg-green-600/10 rounded-lg">
+                    <Music size={20} className="text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium group-hover:text-primary transition-colors">Spotify for Artists</p>
+                    <p className="text-xs text-muted-foreground">Streams & listener data</p>
+                  </div>
+                  <ExternalLink size={16} className="text-muted-foreground" />
+                </a>
+              </div>
+            </div>
+
+            {/* Content Summary */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Music Summary */}
+              <div className="bg-card border border-border rounded-lg p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Music size={20} className="text-primary" />
+                  Music Library
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-muted-foreground">Total Tracks</span>
+                    <span className="font-semibold">{totalTracks}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-muted-foreground">Albums & Singles</span>
+                    <span className="font-semibold">{albums.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-muted-foreground">Manual Uploads</span>
+                    <span className="font-semibold">{manualSongs.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-muted-foreground">Tracks with Custom Audio</span>
+                    <span className="font-semibold text-green-400">
+                      {Object.values(overrides).filter(o => o?.audio_url).length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Events Summary */}
+              <div className="bg-card border border-border rounded-lg p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Calendar size={20} className="text-primary" />
+                  Events
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-muted-foreground">Total Events</span>
+                    <span className="font-semibold">{events.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-muted-foreground">Upcoming Shows</span>
+                    <span className="font-semibold text-green-400">{events.filter(e => !e.is_past).length}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-muted-foreground">Past Shows</span>
+                    <span className="font-semibold text-muted-foreground">{events.filter(e => e.is_past).length}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
