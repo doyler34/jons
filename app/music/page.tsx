@@ -83,23 +83,19 @@ export default function MusicPage() {
           setAlbums(spotifyData.albumsWithTracks)
         }
 
-        // Set top tracks with overrides applied
+        // Set top tracks
         if (spotifyData.topTracks) {
-          const songOverrides = overridesData.overrides || {}
-          const formatted = spotifyData.topTracks.map((track: SpotifyTrack) => {
-            const override = songOverrides[track.id]
-            return {
-              id: track.id,
-              title: track.name,
-              duration: formatDuration(track.duration_ms),
-              durationMs: track.duration_ms,
-              image: override?.cover_url || track.album.images[0]?.url || "/placeholder.svg",
-              previewUrl: override?.audio_url || track.preview_url,
-              spotifyUrl: track.external_urls.spotify,
-              albumName: track.album.name,
-              albumId: track.album.id,
-            }
-          })
+          const formatted = spotifyData.topTracks.map((track: SpotifyTrack) => ({
+            id: track.id,
+            title: track.name,
+            duration: formatDuration(track.duration_ms),
+            durationMs: track.duration_ms,
+            image: track.album.images[0]?.url || "/placeholder.svg",
+            previewUrl: track.preview_url,
+            spotifyUrl: track.external_urls.spotify,
+            albumName: track.album.name,
+            albumId: track.album.id,
+          }))
           setTopTracks(formatted)
           if (formatted.length > 0) {
             setCurrentTrack(formatted[0])
@@ -134,30 +130,6 @@ export default function MusicPage() {
   const playTrack = (track: TrackDisplay) => {
     setCurrentTrack(track)
     setIsPlaying(true)
-  }
-
-  // Get all playable tracks for skip functionality
-  const getAllTracks = (): TrackDisplay[] => {
-    if (selectedAlbum) {
-      return selectedAlbum.tracks.map(getTrackWithOverride)
-    }
-    return topTracks
-  }
-
-  const handlePrevious = () => {
-    const tracks = getAllTracks()
-    const currentIndex = tracks.findIndex(t => t.id === currentTrack?.id)
-    if (currentIndex > 0) {
-      playTrack(tracks[currentIndex - 1])
-    }
-  }
-
-  const handleNext = () => {
-    const tracks = getAllTracks()
-    const currentIndex = tracks.findIndex(t => t.id === currentTrack?.id)
-    if (currentIndex < tracks.length - 1) {
-      playTrack(tracks[currentIndex + 1])
-    }
   }
 
   if (loading) {
@@ -284,8 +256,6 @@ export default function MusicPage() {
             }}
             isPlaying={isPlaying}
             setIsPlaying={setIsPlaying}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
           />
         )}
       </div>
@@ -406,8 +376,6 @@ export default function MusicPage() {
           }}
           isPlaying={isPlaying}
           setIsPlaying={setIsPlaying}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
         />
       )}
     </div>
