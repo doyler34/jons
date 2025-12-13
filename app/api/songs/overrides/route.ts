@@ -75,28 +75,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "spotify_id is required" }, { status: 400 })
     }
 
-    // If only toggling hidden status
-    if (hidden !== undefined && audio_url === undefined && cover_url === undefined) {
-      await sql`
-        INSERT INTO song_overrides (spotify_id, hidden, updated_at)
-        VALUES (${spotify_id}, ${hidden}, NOW())
-        ON CONFLICT (spotify_id) 
-        DO UPDATE SET hidden = ${hidden}, updated_at = NOW()
-      `
-      return NextResponse.json({ success: true, message: "Visibility updated" })
-    }
-
-    // Upsert - insert or update if exists
-    await sql`
-      INSERT INTO song_overrides (spotify_id, audio_url, cover_url, hidden, updated_at)
-      VALUES (${spotify_id}, ${audio_url || null}, ${cover_url || null}, ${hidden ?? false}, NOW())
-      ON CONFLICT (spotify_id) 
-      DO UPDATE SET 
-        audio_url = COALESCE(${audio_url}, song_overrides.audio_url),
-        cover_url = COALESCE(${cover_url}, song_overrides.cover_url),
-        hidden = COALESCE(${hidden}, song_overrides.hidden),
-        updated_at = NOW()
+    // Check if record exists
+    const existing = await sql`
+      SELECT * FROM song_overrides WHERE spotify_id = ${spotify_id}
     `
+
+    if (existing.rows.length === 0) {
+      // Insert new record
+      await sql`
+        INSERT INTO song_overrides (spotify_id, audio_url, cover_url, hidden, updated_at)
+        VALUES (
+          ${spotify_id}, 
+          ${audio_url || null}, 
+          ${cover_url || null}, 
+          ${hidden === true ? true : false}, 
+          NOW()
+        )
+      `
+    } else {
+      // Update existing record - only update fields that are provided
+      if (hidden !== undefined) {
+        await sql`
+          UPDATE song_overrides 
+          SET hidden = ${hidden}, updated_at = NOW()
+          WHERE spotify_id = ${spotify_id}
+        `
+      }
+      if (audio_url !== undefined) {
+        await sql`
+          UPDATE song_overrides 
+          SET audio_url = ${audio_url}, updated_at = NOW()
+          WHERE spotify_id = ${spotify_id}
+        `
+      }
+      if (cover_url !== undefined) {
+        await sql`
+          UPDATE song_overrides 
+          SET cover_url = ${cover_url}, updated_at = NOW()
+          WHERE spotify_id = ${spotify_id}
+        `
+      }
+    }
 
     return NextResponse.json({ success: true, message: "Override saved" })
   } catch (error) {
