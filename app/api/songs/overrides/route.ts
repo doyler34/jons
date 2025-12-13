@@ -17,8 +17,18 @@ async function ensureTable() {
       spotify_id VARCHAR(255) UNIQUE NOT NULL,
       audio_url TEXT,
       cover_url TEXT,
+      hidden BOOLEAN DEFAULT FALSE,
       updated_at TIMESTAMP DEFAULT NOW()
     )
+  `
+  // Add hidden column if it doesn't exist (for existing tables)
+  await sql`
+    DO $$ 
+    BEGIN 
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='song_overrides' AND column_name='hidden') THEN
+        ALTER TABLE song_overrides ADD COLUMN hidden BOOLEAN DEFAULT FALSE;
+      END IF;
+    END $$;
   `
 }
 
@@ -28,16 +38,17 @@ export async function GET() {
     await ensureTable()
     
     const result = await sql`
-      SELECT spotify_id, audio_url, cover_url, updated_at 
+      SELECT spotify_id, audio_url, cover_url, hidden, updated_at 
       FROM song_overrides
     `
 
     // Convert to a map for easy lookup
-    const overrides: Record<string, { audio_url: string | null; cover_url: string | null }> = {}
+    const overrides: Record<string, { audio_url: string | null; cover_url: string | null; hidden: boolean }> = {}
     for (const row of result.rows) {
       overrides[row.spotify_id] = {
         audio_url: row.audio_url,
         cover_url: row.cover_url,
+        hidden: row.hidden || false,
       }
     }
 
@@ -58,20 +69,32 @@ export async function POST(request: NextRequest) {
     await ensureTable()
     
     const body = await request.json()
-    const { spotify_id, audio_url, cover_url } = body
+    const { spotify_id, audio_url, cover_url, hidden } = body
 
     if (!spotify_id) {
       return NextResponse.json({ error: "spotify_id is required" }, { status: 400 })
     }
 
+    // If only toggling hidden status
+    if (hidden !== undefined && audio_url === undefined && cover_url === undefined) {
+      await sql`
+        INSERT INTO song_overrides (spotify_id, hidden, updated_at)
+        VALUES (${spotify_id}, ${hidden}, NOW())
+        ON CONFLICT (spotify_id) 
+        DO UPDATE SET hidden = ${hidden}, updated_at = NOW()
+      `
+      return NextResponse.json({ success: true, message: "Visibility updated" })
+    }
+
     // Upsert - insert or update if exists
     await sql`
-      INSERT INTO song_overrides (spotify_id, audio_url, cover_url, updated_at)
-      VALUES (${spotify_id}, ${audio_url || null}, ${cover_url || null}, NOW())
+      INSERT INTO song_overrides (spotify_id, audio_url, cover_url, hidden, updated_at)
+      VALUES (${spotify_id}, ${audio_url || null}, ${cover_url || null}, ${hidden ?? false}, NOW())
       ON CONFLICT (spotify_id) 
       DO UPDATE SET 
         audio_url = COALESCE(${audio_url}, song_overrides.audio_url),
         cover_url = COALESCE(${cover_url}, song_overrides.cover_url),
+        hidden = COALESCE(${hidden}, song_overrides.hidden),
         updated_at = NOW()
     `
 

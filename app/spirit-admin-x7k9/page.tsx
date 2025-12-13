@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc } from "lucide-react"
+import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff } from "lucide-react"
 
 interface Subscriber {
   id: string
@@ -37,6 +37,7 @@ interface SpotifyAlbum {
 interface SongOverride {
   audio_url: string | null
   cover_url: string | null
+  hidden?: boolean
 }
 
 interface ManualSong {
@@ -219,6 +220,30 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error("Remove error:", error)
+    }
+  }
+
+  const toggleVisibility = async (spotifyId: string, currentHidden: boolean) => {
+    try {
+      const res = await fetch("/api/songs/overrides", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spotify_id: spotifyId, hidden: !currentHidden }),
+      })
+
+      if (res.ok) {
+        setOverrides((prev) => ({
+          ...prev,
+          [spotifyId]: {
+            ...prev[spotifyId],
+            audio_url: prev[spotifyId]?.audio_url || null,
+            cover_url: prev[spotifyId]?.cover_url || null,
+            hidden: !currentHidden,
+          },
+        }))
+      }
+    } catch (error) {
+      console.error("Toggle visibility error:", error)
     }
   }
 
@@ -685,14 +710,15 @@ export default function AdminDashboard() {
 
                   {/* Show Spotify tracks */}
                   {selectedFilter !== "manual" && filteredTracks.map((track) => {
-                    const override = overrides[track.id] || { audio_url: null, cover_url: null }
+                    const override = overrides[track.id] || { audio_url: null, cover_url: null, hidden: false }
                     const hasAudio = !!override.audio_url
                     const hasCover = !!override.cover_url
+                    const isHidden = override.hidden || false
 
                     return (
                       <div
                         key={track.id}
-                        className="flex items-center gap-4 p-4 hover:bg-muted/20 transition-colors"
+                        className={`flex items-center gap-4 p-4 hover:bg-muted/20 transition-colors ${isHidden ? "opacity-50" : ""}`}
                       >
                         <div className="relative">
                           <img
@@ -711,6 +737,11 @@ export default function AdminDashboard() {
                           <p className="font-medium text-foreground truncate">{track.name}</p>
                           <p className="text-sm text-muted-foreground truncate">{track.album.name}</p>
                           <div className="flex gap-2 mt-1 flex-wrap">
+                            {isHidden && (
+                              <span className="text-xs bg-gray-500/20 text-gray-400 px-2 py-0.5 rounded">
+                                Hidden
+                              </span>
+                            )}
                             {hasAudio && (
                               <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">
                                 ✓ Custom Audio
@@ -735,6 +766,20 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="flex gap-2 flex-shrink-0">
+                          {/* Visibility Toggle */}
+                          <button
+                            onClick={() => toggleVisibility(track.id, isHidden)}
+                            className={`flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+                              isHidden
+                                ? "bg-gray-500/20 text-gray-400 hover:bg-gray-500/30"
+                                : "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                            }`}
+                            title={isHidden ? "Show on site" : "Hide from site"}
+                          >
+                            {isHidden ? <EyeOff size={14} /> : <Eye size={14} />}
+                            {isHidden ? "Hidden" : "Visible"}
+                          </button>
+
                           <div className="relative">
                             <input
                               type="file"
