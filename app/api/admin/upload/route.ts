@@ -19,20 +19,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
-      return NextResponse.json({ error: "File must be an image" }, { status: 400 })
+    // Validate file type - allow images and audio
+    const isImage = file.type.startsWith("image/")
+    const isAudio = file.type.startsWith("audio/")
+    
+    if (!isImage && !isAudio) {
+      return NextResponse.json({ error: "File must be an image or audio file" }, { status: 400 })
     }
 
-    // Validate file size (max 4MB)
-    if (file.size > 4 * 1024 * 1024) {
-      return NextResponse.json({ error: "File too large (max 4MB)" }, { status: 400 })
+    // Validate file size (max 4MB for images, max 50MB for audio)
+    const maxSize = isAudio ? 50 * 1024 * 1024 : 4 * 1024 * 1024
+    if (file.size > maxSize) {
+      return NextResponse.json({ error: `File too large (max ${isAudio ? "50MB" : "4MB"})` }, { status: 400 })
     }
 
     // Generate unique filename
     const timestamp = Date.now()
-    const extension = file.name.split(".").pop() || "jpg"
-    const filename = `newsletter-${timestamp}.${extension}`
+    const extension = file.name.split(".").pop() || (isAudio ? "mp3" : "jpg")
+    const prefix = isAudio ? "song" : "newsletter"
+    const filename = `${prefix}-${timestamp}.${extension}`
 
     // Upload to Vercel Blob
     const blob = await put(filename, file, {
@@ -49,6 +54,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Upload failed" }, { status: 500 })
   }
 }
+
 
 
 
