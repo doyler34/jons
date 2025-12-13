@@ -1,7 +1,7 @@
 "use client"
 
 import { Play, Pause, SkipBack, SkipForward } from "lucide-react"
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect, useState, useCallback } from "react"
 
 interface PlayerBarProps {
   currentTrack: {
@@ -20,75 +20,70 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
 
-  // Audio playing logic - DO NOT CHANGE THIS SECTION
+  // Create audio element once
   useEffect(() => {
-    if (currentTrack.previewUrl) {
-      if (!audioRef.current) {
-        audioRef.current = new Audio(currentTrack.previewUrl)
-        audioRef.current.volume = 0.5
-      } else if (audioRef.current.src !== currentTrack.previewUrl) {
-        audioRef.current.src = currentTrack.previewUrl
+    if (!audioRef.current) {
+      audioRef.current = new Audio()
+      audioRef.current.volume = 0.5
+      
+      // Add event listeners
+      audioRef.current.addEventListener("timeupdate", () => {
+        setCurrentTime(audioRef.current?.currentTime || 0)
+      })
+      audioRef.current.addEventListener("loadedmetadata", () => {
+        setDuration(audioRef.current?.duration || 0)
+      })
+      audioRef.current.addEventListener("ended", () => {
+        setIsPlaying(false)
+      })
+    }
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
       }
+    }
+  }, [setIsPlaying])
 
+  // Handle track changes
+  useEffect(() => {
+    if (audioRef.current && currentTrack.previewUrl) {
+      if (audioRef.current.src !== currentTrack.previewUrl) {
+        audioRef.current.src = currentTrack.previewUrl
+        audioRef.current.load()
+        setCurrentTime(0)
+        setDuration(0)
+      }
+    }
+  }, [currentTrack.previewUrl])
+
+  // Handle play/pause
+  useEffect(() => {
+    if (audioRef.current && currentTrack.previewUrl) {
       if (isPlaying) {
         audioRef.current.play().catch(console.error)
       } else {
         audioRef.current.pause()
       }
     }
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause()
-      }
-    }
   }, [isPlaying, currentTrack.previewUrl])
-  // END audio playing logic
-
-  // Track progress and duration
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
-
-    const updateTime = () => setCurrentTime(audio.currentTime)
-    const updateDuration = () => setDuration(audio.duration || 0)
-    const handleEnded = () => setIsPlaying(false)
-
-    audio.addEventListener("timeupdate", updateTime)
-    audio.addEventListener("loadedmetadata", updateDuration)
-    audio.addEventListener("durationchange", updateDuration)
-    audio.addEventListener("ended", handleEnded)
-
-    return () => {
-      audio.removeEventListener("timeupdate", updateTime)
-      audio.removeEventListener("loadedmetadata", updateDuration)
-      audio.removeEventListener("durationchange", updateDuration)
-      audio.removeEventListener("ended", handleEnded)
-    }
-  }, [currentTrack.previewUrl, setIsPlaying])
-
-  // Reset time when track changes
-  useEffect(() => {
-    setCurrentTime(0)
-    setDuration(0)
-  }, [currentTrack.previewUrl])
 
   // Format time as m:ss
-  const formatTime = (time: number) => {
+  const formatTime = useCallback((time: number) => {
     if (!time || isNaN(time)) return "0:00"
     const mins = Math.floor(time / 60)
     const secs = Math.floor(time % 60)
     return `${mins}:${secs.toString().padStart(2, "0")}`
-  }
+  }, [])
 
   // Seek to position when clicking progress bar
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!audioRef.current || !progressRef.current || !duration) return
     const rect = progressRef.current.getBoundingClientRect()
-    const percent = (e.clientX - rect.left) / rect.width
+    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
     const newTime = percent * duration
     audioRef.current.currentTime = newTime
-    setCurrentTime(newTime)
   }
 
   // Skip forward/back 10 seconds
@@ -98,8 +93,8 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
   }
 
   const skipForward = () => {
-    if (!audioRef.current || !duration) return
-    audioRef.current.currentTime = Math.min(duration, audioRef.current.currentTime + 10)
+    if (!audioRef.current) return
+    audioRef.current.currentTime = Math.min(duration || 999, audioRef.current.currentTime + 10)
   }
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
@@ -114,10 +109,9 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
           className="h-1 bg-muted cursor-pointer group"
         >
           <div 
-            className="h-full bg-primary transition-all duration-100 relative"
+            className="h-full bg-primary relative"
             style={{ width: `${progress}%` }}
           >
-            {/* Seek handle on hover */}
             <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </div>
@@ -137,7 +131,6 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
                 onClick={skipBackward}
                 className="p-2 hover:bg-muted rounded-full transition-colors" 
                 aria-label="Skip back 10 seconds"
-                title="Skip back 10s"
               >
                 <SkipBack size={18} className="text-muted-foreground hover:text-foreground" />
               </button>
@@ -152,7 +145,6 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
                 onClick={skipForward}
                 className="p-2 hover:bg-muted rounded-full transition-colors" 
                 aria-label="Skip forward 10 seconds"
-                title="Skip forward 10s"
               >
                 <SkipForward size={18} className="text-muted-foreground hover:text-foreground" />
               </button>
