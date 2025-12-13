@@ -1,7 +1,7 @@
 "use client"
 
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from "lucide-react"
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect, useState, useCallback } from "react"
 
 interface PlayerBarProps {
   currentTrack: {
@@ -17,6 +17,7 @@ interface PlayerBarProps {
 }
 
 function formatTime(seconds: number): string {
+  if (!seconds || isNaN(seconds)) return "0:00"
   const mins = Math.floor(seconds / 60)
   const secs = Math.floor(seconds % 60)
   return `${mins}:${secs.toString().padStart(2, "0")}`
@@ -28,55 +29,95 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying, onPre
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(0.5)
+  const [isLoading, setIsLoading] = useState(false)
+  const prevUrlRef = useRef<string | null>(null)
 
+  // Create audio element once
   useEffect(() => {
-    if (currentTrack.previewUrl) {
-      if (!audioRef.current) {
-        audioRef.current = new Audio(currentTrack.previewUrl)
-        audioRef.current.volume = volume
-        
-        // Set up event listeners
-        audioRef.current.addEventListener("timeupdate", () => {
-          setCurrentTime(audioRef.current?.currentTime || 0)
-        })
-        audioRef.current.addEventListener("loadedmetadata", () => {
-          setDuration(audioRef.current?.duration || 0)
-        })
-        audioRef.current.addEventListener("ended", () => {
-          setIsPlaying(false)
-          if (onNext) onNext()
-        })
-      } else if (audioRef.current.src !== currentTrack.previewUrl) {
-        audioRef.current.src = currentTrack.previewUrl
-        audioRef.current.load()
-        setCurrentTime(0)
-      }
-
-      if (isPlaying) {
-        audioRef.current.play().catch(console.error)
-      } else {
-        audioRef.current.pause()
-      }
+    if (!audioRef.current) {
+      audioRef.current = new Audio()
+      audioRef.current.volume = volume
     }
 
-    return () => {
-      // Don't destroy audio on every render, just pause
-    }
-  }, [isPlaying, currentTrack.previewUrl])
+    const audio = audioRef.current
 
-  // Cleanup on unmount
-  useEffect(() => {
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration)
+      setIsLoading(false)
+    }
+    const handleEnded = () => {
+      setIsPlaying(false)
+      if (onNext) onNext()
+    }
+    const handleCanPlay = () => {
+      setIsLoading(false)
+    }
+    const handleError = (e: Event) => {
+      console.error("Audio error:", e)
+      setIsLoading(false)
+    }
+
+    audio.addEventListener("timeupdate", handleTimeUpdate)
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata)
+    audio.addEventListener("ended", handleEnded)
+    audio.addEventListener("canplay", handleCanPlay)
+    audio.addEventListener("error", handleError)
+
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current = null
-      }
+      audio.removeEventListener("timeupdate", handleTimeUpdate)
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata)
+      audio.removeEventListener("ended", handleEnded)
+      audio.removeEventListener("canplay", handleCanPlay)
+      audio.removeEventListener("error", handleError)
+      audio.pause()
     }
   }, [])
 
+  // Handle track changes
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    const url = currentTrack.previewUrl
+
+    // If URL changed, load new track
+    if (url && url !== prevUrlRef.current) {
+      prevUrlRef.current = url
+      setIsLoading(true)
+      setCurrentTime(0)
+      setDuration(0)
+      audio.src = url
+      audio.load()
+      
+      // If should be playing, play after a short delay to let it load
+      if (isPlaying) {
+        audio.play().catch(err => {
+          console.error("Play failed:", err)
+          setIsPlaying(false)
+        })
+      }
+    }
+  }, [currentTrack.previewUrl])
+
+  // Handle play/pause
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !currentTrack.previewUrl) return
+
+    if (isPlaying) {
+      audio.play().catch(err => {
+        console.error("Play failed:", err)
+        setIsPlaying(false)
+      })
+    } else {
+      audio.pause()
+    }
+  }, [isPlaying, currentTrack.previewUrl])
+
   // Handle progress bar click for seeking
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!audioRef.current || !progressRef.current) return
+  const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!audioRef.current || !progressRef.current || duration === 0) return
     
     const rect = progressRef.current.getBoundingClientRect()
     const clickX = e.clientX - rect.left
@@ -85,18 +126,19 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying, onPre
     
     audioRef.current.currentTime = newTime
     setCurrentTime(newTime)
-  }
+  }, [duration])
 
   // Handle volume change
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value)
     setVolume(newVolume)
     if (audioRef.current) {
       audioRef.current.volume = newVolume
     }
-  }
+  }, [])
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
+  const hasAudio = !!currentTrack.previewUrl
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-40">
@@ -130,7 +172,13 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying, onPre
             <div className="truncate">
               <p className="text-sm font-semibold text-foreground truncate">{currentTrack.title}</p>
               <p className="text-xs text-muted-foreground">
-                {formatTime(currentTime)} / {duration > 0 ? formatTime(duration) : currentTrack.duration}
+                {hasAudio ? (
+                  <>
+                    {formatTime(currentTime)} / {duration > 0 ? formatTime(duration) : currentTrack.duration}
+                  </>
+                ) : (
+                  <span className="text-red-400">No audio available</span>
+                )}
               </p>
             </div>
           </div>
@@ -145,14 +193,21 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying, onPre
               <SkipBack size={20} className="text-foreground" />
             </button>
             <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="p-3 bg-primary hover:bg-primary/90 rounded-full transition-colors"
+              onClick={() => hasAudio && setIsPlaying(!isPlaying)}
+              disabled={!hasAudio || isLoading}
+              className={`p-3 rounded-full transition-colors ${
+                hasAudio 
+                  ? "bg-primary hover:bg-primary/90" 
+                  : "bg-muted cursor-not-allowed"
+              }`}
               aria-label="Play/Pause"
             >
-              {isPlaying ? (
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+              ) : isPlaying ? (
                 <Pause size={20} className="text-primary-foreground" fill="currentColor" />
               ) : (
-                <Play size={20} className="text-primary-foreground ml-0.5" fill="currentColor" />
+                <Play size={20} className={hasAudio ? "text-primary-foreground" : "text-muted-foreground"} fill="currentColor" />
               )}
             </button>
             <button 
