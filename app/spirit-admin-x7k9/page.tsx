@@ -56,6 +56,7 @@ export default function AdminDashboard() {
   const [uploadingFor, setUploadingFor] = useState<{ id: string; type: "audio" | "cover" } | null>(null)
   const [musicStatus, setMusicStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [lastMusicUpdate, setLastMusicUpdate] = useState<Date | null>(null)
+  const [currentAlbumIndex, setCurrentAlbumIndex] = useState(0)
 
   // Subscribers state
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
@@ -449,27 +450,64 @@ export default function AdminDashboard() {
                 No music found from Spotify
               </div>
             ) : (
-              <div className="space-y-8">
-                {albums.map((album) => (
-                  <div key={album.id} className="bg-card border border-border rounded-lg overflow-hidden">
+              <div className="space-y-4">
+                {/* Album Navigation */}
+                <div className="flex items-center justify-between bg-card border border-border rounded-lg p-4">
+                  <button
+                    onClick={() => setCurrentAlbumIndex(Math.max(0, currentAlbumIndex - 1))}
+                    disabled={currentAlbumIndex === 0}
+                    className="px-4 py-2 bg-muted rounded-md text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-muted/80 transition-colors"
+                  >
+                    ← Previous
+                  </button>
+                  
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={currentAlbumIndex}
+                      onChange={(e) => setCurrentAlbumIndex(Number(e.target.value))}
+                      className="bg-muted border border-border rounded-md px-3 py-2 text-sm font-medium"
+                    >
+                      {albums.map((album, index) => (
+                        <option key={album.id} value={index}>
+                          {album.name} ({album.tracks?.length || 0} tracks)
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-sm text-muted-foreground">
+                      {currentAlbumIndex + 1} of {albums.length}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentAlbumIndex(Math.min(albums.length - 1, currentAlbumIndex + 1))}
+                    disabled={currentAlbumIndex === albums.length - 1}
+                    className="px-4 py-2 bg-muted rounded-md text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-muted/80 transition-colors"
+                  >
+                    Next →
+                  </button>
+                </div>
+
+                {/* Current Album */}
+                {albums[currentAlbumIndex] && (
+                  <div className="bg-card border border-border rounded-lg overflow-hidden">
                     {/* Album Header */}
-                    <div className="flex items-center gap-4 p-4 bg-muted/30 border-b border-border">
+                    <div className="flex items-center gap-4 p-6 bg-muted/30 border-b border-border">
                       <img
-                        src={album.images[0]?.url || "/placeholder.svg"}
-                        alt={album.name}
-                        className="w-16 h-16 rounded object-cover"
+                        src={albums[currentAlbumIndex].images[0]?.url || "/placeholder.svg"}
+                        alt={albums[currentAlbumIndex].name}
+                        className="w-20 h-20 rounded-lg object-cover shadow-lg"
                       />
                       <div>
-                        <h3 className="font-semibold text-lg">{album.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {album.tracks?.length || 0} tracks • {album.release_date}
+                        <h3 className="font-bold text-xl">{albums[currentAlbumIndex].name}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {albums[currentAlbumIndex].tracks?.length || 0} tracks • {albums[currentAlbumIndex].release_date}
                         </p>
                       </div>
                     </div>
 
                     {/* Tracks */}
                     <div className="divide-y divide-border">
-                      {album.tracks?.map((track) => {
+                      {albums[currentAlbumIndex].tracks?.map((track) => {
                         const override = overrides[track.id] || { audio_url: null, cover_url: null }
                         const hasAudio = !!override.audio_url
                         const hasCover = !!override.cover_url
@@ -482,7 +520,7 @@ export default function AdminDashboard() {
                             {/* Cover Image */}
                             <div className="relative">
                               <img
-                                src={override.cover_url || track.album.images[0]?.url || album.images[0]?.url || "/placeholder.svg"}
+                                src={override.cover_url || track.album.images[0]?.url || albums[currentAlbumIndex].images[0]?.url || "/placeholder.svg"}
                                 alt={track.name}
                                 className="w-12 h-12 rounded object-cover"
                               />
@@ -600,7 +638,7 @@ export default function AdminDashboard() {
                       })}
                     </div>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>
