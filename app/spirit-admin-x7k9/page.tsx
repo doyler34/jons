@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw } from "lucide-react"
+import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc } from "lucide-react"
 
 interface Subscriber {
   id: string
@@ -39,6 +39,15 @@ interface SongOverride {
   cover_url: string | null
 }
 
+interface ManualSong {
+  id: string
+  title: string
+  album_name: string
+  audio_url: string
+  cover_url: string | null
+  created_at: string
+}
+
 const EMOJI_LIST = ["🔥", "🎵", "🎤", "💿", "🎧", "⚡", "💀", "👻", "🖤", "❤️", "🚨", "📢", "🆕", "✨", "💯", "🙏"]
 
 type TabType = "music" | "newsletter" | "subscribers"
@@ -56,7 +65,14 @@ export default function AdminDashboard() {
   const [uploadingFor, setUploadingFor] = useState<{ id: string; type: "audio" | "cover" } | null>(null)
   const [musicStatus, setMusicStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [lastMusicUpdate, setLastMusicUpdate] = useState<Date | null>(null)
-  const [currentAlbumIndex, setCurrentAlbumIndex] = useState(0)
+  const [selectedFilter, setSelectedFilter] = useState<string>("all") // "all", "singles", or album id
+  const [searchQuery, setSearchQuery] = useState("")
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [newSong, setNewSong] = useState({ title: "", albumName: "", audioFile: null as File | null, coverFile: null as File | null })
+  const [uploadingNewSong, setUploadingNewSong] = useState(false)
+  const [manualSongs, setManualSongs] = useState<ManualSong[]>([])
+  const newSongAudioRef = useRef<HTMLInputElement>(null)
+  const newSongCoverRef = useRef<HTMLInputElement>(null)
 
   // Subscribers state
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
@@ -88,6 +104,7 @@ export default function AdminDashboard() {
         setAuthenticated(true)
         fetchMusic()
         fetchSubscribers()
+        fetchManualSongs()
       } else {
         router.push("/spirit-admin-x7k9/login")
       }
@@ -335,8 +352,117 @@ export default function AdminDashboard() {
     setSending(false)
   }
 
+  // Upload new manual song
+  const handleNewSongUpload = async () => {
+    if (!newSong.title || !newSong.audioFile) {
+      setMusicStatus({ type: "error", message: "Title and audio file are required" })
+      return
+    }
+
+    setUploadingNewSong(true)
+    setMusicStatus(null)
+
+    try {
+      // Upload audio file
+      const audioFormData = new FormData()
+      audioFormData.append("file", newSong.audioFile)
+      const audioRes = await fetch("/api/admin/upload", { method: "POST", body: audioFormData })
+      if (!audioRes.ok) throw new Error("Failed to upload audio")
+      const { url: audioUrl } = await audioRes.json()
+
+      // Upload cover if provided
+      let coverUrl = null
+      if (newSong.coverFile) {
+        const coverFormData = new FormData()
+        coverFormData.append("file", newSong.coverFile)
+        const coverRes = await fetch("/api/admin/upload", { method: "POST", body: coverFormData })
+        if (coverRes.ok) {
+          const { url } = await coverRes.json()
+          coverUrl = url
+        }
+      }
+
+      // Save to database
+      const saveRes = await fetch("/api/songs/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newSong.title,
+          album_name: newSong.albumName || "Singles",
+          audio_url: audioUrl,
+          cover_url: coverUrl,
+        }),
+      })
+
+      if (!saveRes.ok) throw new Error("Failed to save song")
+      
+      const { song } = await saveRes.json()
+      setManualSongs(prev => [song, ...prev])
+      setMusicStatus({ type: "success", message: "Song uploaded successfully!" })
+      setShowUploadModal(false)
+      setNewSong({ title: "", albumName: "", audioFile: null, coverFile: null })
+      if (newSongAudioRef.current) newSongAudioRef.current.value = ""
+      if (newSongCoverRef.current) newSongCoverRef.current.value = ""
+    } catch (error) {
+      console.error("Upload error:", error)
+      setMusicStatus({ type: "error", message: error instanceof Error ? error.message : "Upload failed" })
+    } finally {
+      setUploadingNewSong(false)
+    }
+  }
+
+  // Fetch manual songs
+  const fetchManualSongs = async () => {
+    try {
+      const res = await fetch("/api/songs/manual")
+      if (res.ok) {
+        const data = await res.json()
+        setManualSongs(data.songs || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch manual songs:", error)
+    }
+  }
+
+  // Get singles (albums with only 1 track)
+  const singles = albums.filter(a => a.tracks?.length === 1)
+  const multiTrackAlbums = albums.filter(a => (a.tracks?.length || 0) > 1)
+
+  // Get filtered tracks
+  const getFilteredTracks = () => {
+    let tracks: SpotifyTrack[] = []
+    
+    if (selectedFilter === "all") {
+      tracks = albums.flatMap(a => a.tracks || [])
+    } else if (selectedFilter === "singles") {
+      tracks = singles.flatMap(a => a.tracks || [])
+    } else if (selectedFilter === "manual") {
+      // Return empty for spotify tracks, manual songs handled separately
+      return []
+    } else {
+      const album = albums.find(a => a.id === selectedFilter)
+      tracks = album?.tracks || []
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      tracks = tracks.filter(t => 
+        t.name.toLowerCase().includes(query) || 
+        t.album.name.toLowerCase().includes(query)
+      )
+    }
+
+    return tracks
+  }
+
+  const filteredTracks = getFilteredTracks()
+  const filteredManualSongs = searchQuery.trim() 
+    ? manualSongs.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()) || s.album_name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : manualSongs
+
   // Get total track count
-  const totalTracks = albums.reduce((sum, album) => sum + (album.tracks?.length || 0), 0)
+  const totalTracks = albums.reduce((sum, album) => sum + (album.tracks?.length || 0), 0) + manualSongs.length
 
   if (authenticated === null) {
     return (
@@ -411,11 +537,11 @@ export default function AdminDashboard() {
         {activeTab === "music" && (
           <div className="space-y-6">
             {/* Music Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h2 className="text-2xl font-bold">Music Library</h2>
                 <p className="text-muted-foreground mt-1">
-                  {totalTracks} songs across {albums.length} releases
+                  {totalTracks} songs across {albums.length + (manualSongs.length > 0 ? 1 : 0)} releases
                   {lastMusicUpdate && (
                     <span className="text-xs ml-2">
                       • Updated {lastMusicUpdate.toLocaleTimeString()}
@@ -423,15 +549,97 @@ export default function AdminDashboard() {
                   )}
                 </p>
               </div>
-              <Button 
-                onClick={() => fetchMusic(true)} 
-                variant="outline" 
-                disabled={loadingTracks}
-                className="gap-2"
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => setShowUploadModal(true)} 
+                  className="gap-2 bg-primary"
+                >
+                  <Plus size={16} />
+                  Upload New Song
+                </Button>
+                <Button 
+                  onClick={() => fetchMusic(true)} 
+                  variant="outline" 
+                  disabled={loadingTracks}
+                  className="gap-2"
+                >
+                  <RefreshCw size={16} className={loadingTracks ? "animate-spin" : ""} />
+                  Refresh
+                </Button>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search songs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-card border-border"
+              />
+            </div>
+
+            {/* Album Filter Buttons */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedFilter("all")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  selectedFilter === "all" 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-card border border-border hover:bg-muted"
+                }`}
               >
-                <RefreshCw size={16} className={loadingTracks ? "animate-spin" : ""} />
-                {loadingTracks ? "Refreshing..." : "Refresh from Spotify"}
-              </Button>
+                All Songs
+              </button>
+              
+              {singles.length > 0 && (
+                <button
+                  onClick={() => setSelectedFilter("singles")}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                    selectedFilter === "singles" 
+                      ? "bg-primary text-primary-foreground" 
+                      : "bg-card border border-border hover:bg-muted"
+                  }`}
+                >
+                  <Disc size={14} />
+                  Singles ({singles.length})
+                </button>
+              )}
+
+              {manualSongs.length > 0 && (
+                <button
+                  onClick={() => setSelectedFilter("manual")}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                    selectedFilter === "manual" 
+                      ? "bg-purple-500 text-white" 
+                      : "bg-card border border-border hover:bg-muted"
+                  }`}
+                >
+                  <Upload size={14} />
+                  Manual Uploads ({manualSongs.length})
+                </button>
+              )}
+
+              {multiTrackAlbums.map(album => (
+                <button
+                  key={album.id}
+                  onClick={() => setSelectedFilter(album.id)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                    selectedFilter === album.id 
+                      ? "bg-primary text-primary-foreground" 
+                      : "bg-card border border-border hover:bg-muted"
+                  }`}
+                >
+                  <img 
+                    src={album.images[0]?.url || "/placeholder.svg"} 
+                    alt={album.name}
+                    className="w-5 h-5 rounded object-cover"
+                  />
+                  {album.name}
+                </button>
+              ))}
             </div>
 
             {musicStatus && (
@@ -445,200 +653,241 @@ export default function AdminDashboard() {
                 <Loader2 size={32} className="animate-spin mx-auto mb-4" />
                 Loading music from Spotify...
               </div>
-            ) : albums.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground">
-                No music found from Spotify
-              </div>
             ) : (
-              <div className="space-y-4">
-                {/* Album Navigation */}
-                <div className="flex items-center justify-between bg-card border border-border rounded-lg p-4">
-                  <button
-                    onClick={() => setCurrentAlbumIndex(Math.max(0, currentAlbumIndex - 1))}
-                    disabled={currentAlbumIndex === 0}
-                    className="px-4 py-2 bg-muted rounded-md text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-muted/80 transition-colors"
-                  >
-                    ← Previous
-                  </button>
-                  
-                  <div className="flex items-center gap-3">
-                    <select
-                      value={currentAlbumIndex}
-                      onChange={(e) => setCurrentAlbumIndex(Number(e.target.value))}
-                      className="bg-muted border border-border rounded-md px-3 py-2 text-sm font-medium"
+              <div className="bg-card border border-border rounded-lg overflow-hidden">
+                {/* Songs List */}
+                <div className="divide-y divide-border">
+                  {/* Show manual songs if filter is "manual" or "all" */}
+                  {(selectedFilter === "manual" || selectedFilter === "all") && filteredManualSongs.map((song) => (
+                    <div
+                      key={song.id}
+                      className="flex items-center gap-4 p-4 hover:bg-muted/20 transition-colors"
                     >
-                      {albums.map((album, index) => (
-                        <option key={album.id} value={index}>
-                          {album.name} ({album.tracks?.length || 0} tracks)
-                        </option>
-                      ))}
-                    </select>
-                    <span className="text-sm text-muted-foreground">
-                      {currentAlbumIndex + 1} of {albums.length}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={() => setCurrentAlbumIndex(Math.min(albums.length - 1, currentAlbumIndex + 1))}
-                    disabled={currentAlbumIndex === albums.length - 1}
-                    className="px-4 py-2 bg-muted rounded-md text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-muted/80 transition-colors"
-                  >
-                    Next →
-                  </button>
-                </div>
-
-                {/* Current Album */}
-                {albums[currentAlbumIndex] && (
-                  <div className="bg-card border border-border rounded-lg overflow-hidden">
-                    {/* Album Header */}
-                    <div className="flex items-center gap-4 p-6 bg-muted/30 border-b border-border">
-                      <img
-                        src={albums[currentAlbumIndex].images[0]?.url || "/placeholder.svg"}
-                        alt={albums[currentAlbumIndex].name}
-                        className="w-20 h-20 rounded-lg object-cover shadow-lg"
-                      />
-                      <div>
-                        <h3 className="font-bold text-xl">{albums[currentAlbumIndex].name}</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {albums[currentAlbumIndex].tracks?.length || 0} tracks • {albums[currentAlbumIndex].release_date}
-                        </p>
+                      <div className="relative">
+                        <img
+                          src={song.cover_url || "/placeholder.svg"}
+                          alt={song.title}
+                          className="w-12 h-12 rounded object-cover"
+                        />
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center">
+                          <Upload size={8} className="text-white" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground truncate">{song.title}</p>
+                        <p className="text-sm text-muted-foreground truncate">{song.album_name}</p>
+                        <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded mt-1 inline-block">
+                          Manual Upload
+                        </span>
                       </div>
                     </div>
+                  ))}
 
-                    {/* Tracks */}
-                    <div className="divide-y divide-border">
-                      {albums[currentAlbumIndex].tracks?.map((track) => {
-                        const override = overrides[track.id] || { audio_url: null, cover_url: null }
-                        const hasAudio = !!override.audio_url
-                        const hasCover = !!override.cover_url
+                  {/* Show Spotify tracks */}
+                  {selectedFilter !== "manual" && filteredTracks.map((track) => {
+                    const override = overrides[track.id] || { audio_url: null, cover_url: null }
+                    const hasAudio = !!override.audio_url
+                    const hasCover = !!override.cover_url
 
-                        return (
-                          <div
-                            key={track.id}
-                            className="flex items-center gap-4 p-4 hover:bg-muted/20 transition-colors"
-                          >
-                            {/* Cover Image */}
-                            <div className="relative">
-                              <img
-                                src={override.cover_url || track.album.images[0]?.url || albums[currentAlbumIndex].images[0]?.url || "/placeholder.svg"}
-                                alt={track.name}
-                                className="w-12 h-12 rounded object-cover"
-                              />
-                              {hasCover && (
-                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                                  <Check size={10} className="text-white" />
-                                </div>
-                              )}
+                    return (
+                      <div
+                        key={track.id}
+                        className="flex items-center gap-4 p-4 hover:bg-muted/20 transition-colors"
+                      >
+                        <div className="relative">
+                          <img
+                            src={override.cover_url || track.album.images[0]?.url || "/placeholder.svg"}
+                            alt={track.name}
+                            className="w-12 h-12 rounded object-cover"
+                          />
+                          {hasCover && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                              <Check size={10} className="text-white" />
                             </div>
+                          )}
+                        </div>
 
-                            {/* Track Info */}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-foreground truncate">{track.name}</p>
-                              <div className="flex gap-2 mt-1 flex-wrap">
-                                {hasAudio && (
-                                  <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">
-                                    ✓ Custom Audio
-                                  </span>
-                                )}
-                                {hasCover && (
-                                  <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">
-                                    ✓ Custom Cover
-                                  </span>
-                                )}
-                                {!hasAudio && track.preview_url && (
-                                  <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded">
-                                    Spotify Preview
-                                  </span>
-                                )}
-                                {!hasAudio && !track.preview_url && (
-                                  <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded">
-                                    No Audio
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Upload Buttons */}
-                            <div className="flex gap-2 flex-shrink-0">
-                              {/* Audio Upload */}
-                              <div className="relative">
-                                <input
-                                  type="file"
-                                  accept="audio/*"
-                                  className="hidden"
-                                  id={`audio-${track.id}`}
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0]
-                                    if (file) handleMusicFileUpload(track.id, file, "audio")
-                                    e.target.value = ""
-                                  }}
-                                  disabled={uploadingFor?.id === track.id}
-                                />
-                                <label
-                                  htmlFor={`audio-${track.id}`}
-                                  className={`flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium cursor-pointer transition-colors ${
-                                    hasAudio
-                                      ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
-                                      : "bg-primary/20 text-primary hover:bg-primary/30"
-                                  } ${uploadingFor?.id === track.id && uploadingFor.type === "audio" ? "opacity-50" : ""}`}
-                                >
-                                  {uploadingFor?.id === track.id && uploadingFor.type === "audio" ? (
-                                    <Loader2 size={14} className="animate-spin" />
-                                  ) : (
-                                    <Upload size={14} />
-                                  )}
-                                  {hasAudio ? "Replace" : "Audio"}
-                                </label>
-                              </div>
-
-                              {/* Cover Upload */}
-                              <div className="relative">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  id={`cover-${track.id}`}
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0]
-                                    if (file) handleMusicFileUpload(track.id, file, "cover")
-                                    e.target.value = ""
-                                  }}
-                                  disabled={uploadingFor?.id === track.id}
-                                />
-                                <label
-                                  htmlFor={`cover-${track.id}`}
-                                  className={`flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium cursor-pointer transition-colors ${
-                                    hasCover
-                                      ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
-                                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                                  } ${uploadingFor?.id === track.id && uploadingFor.type === "cover" ? "opacity-50" : ""}`}
-                                >
-                                  {uploadingFor?.id === track.id && uploadingFor.type === "cover" ? (
-                                    <Loader2 size={14} className="animate-spin" />
-                                  ) : (
-                                    <Image size={14} />
-                                  )}
-                                  {hasCover ? "Replace" : "Cover"}
-                                </label>
-                              </div>
-
-                              {/* Remove buttons */}
-                              {hasAudio && (
-                                <button
-                                  onClick={() => removeOverride(track.id, "audio")}
-                                  className="p-2 text-red-400 hover:bg-red-400/10 rounded"
-                                  title="Remove audio"
-                                >
-                                  <X size={14} />
-                                </button>
-                              )}
-                            </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground truncate">{track.name}</p>
+                          <p className="text-sm text-muted-foreground truncate">{track.album.name}</p>
+                          <div className="flex gap-2 mt-1 flex-wrap">
+                            {hasAudio && (
+                              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">
+                                ✓ Custom Audio
+                              </span>
+                            )}
+                            {hasCover && (
+                              <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">
+                                ✓ Custom Cover
+                              </span>
+                            )}
+                            {!hasAudio && track.preview_url && (
+                              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded">
+                                Spotify Preview
+                              </span>
+                            )}
+                            {!hasAudio && !track.preview_url && (
+                              <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded">
+                                No Audio
+                              </span>
+                            )}
                           </div>
-                        )
-                      })}
+                        </div>
+
+                        <div className="flex gap-2 flex-shrink-0">
+                          <div className="relative">
+                            <input
+                              type="file"
+                              accept="audio/*"
+                              className="hidden"
+                              id={`audio-${track.id}`}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) handleMusicFileUpload(track.id, file, "audio")
+                                e.target.value = ""
+                              }}
+                              disabled={uploadingFor?.id === track.id}
+                            />
+                            <label
+                              htmlFor={`audio-${track.id}`}
+                              className={`flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium cursor-pointer transition-colors ${
+                                hasAudio
+                                  ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                                  : "bg-primary/20 text-primary hover:bg-primary/30"
+                              } ${uploadingFor?.id === track.id && uploadingFor.type === "audio" ? "opacity-50" : ""}`}
+                            >
+                              {uploadingFor?.id === track.id && uploadingFor.type === "audio" ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <Upload size={14} />
+                              )}
+                              {hasAudio ? "Replace" : "Audio"}
+                            </label>
+                          </div>
+
+                          <div className="relative">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              id={`cover-${track.id}`}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) handleMusicFileUpload(track.id, file, "cover")
+                                e.target.value = ""
+                              }}
+                              disabled={uploadingFor?.id === track.id}
+                            />
+                            <label
+                              htmlFor={`cover-${track.id}`}
+                              className={`flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium cursor-pointer transition-colors ${
+                                hasCover
+                                  ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              } ${uploadingFor?.id === track.id && uploadingFor.type === "cover" ? "opacity-50" : ""}`}
+                            >
+                              {uploadingFor?.id === track.id && uploadingFor.type === "cover" ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <Image size={14} />
+                              )}
+                              {hasCover ? "Replace" : "Cover"}
+                            </label>
+                          </div>
+
+                          {hasAudio && (
+                            <button
+                              onClick={() => removeOverride(track.id, "audio")}
+                              className="p-2 text-red-400 hover:bg-red-400/10 rounded"
+                              title="Remove audio"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {filteredTracks.length === 0 && (selectedFilter === "manual" ? filteredManualSongs.length === 0 : true) && selectedFilter !== "manual" && (
+                    <div className="text-center py-16 text-muted-foreground">
+                      {searchQuery ? "No songs match your search" : "No songs found"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Upload New Song Modal */}
+            {showUploadModal && (
+              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="bg-card border border-border rounded-lg w-full max-w-md">
+                  <div className="p-6 border-b border-border flex items-center justify-between">
+                    <h3 className="text-lg font-bold">Upload New Song</h3>
+                    <button onClick={() => setShowUploadModal(false)} className="text-muted-foreground hover:text-foreground">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Song Title *</label>
+                      <Input
+                        type="text"
+                        placeholder="Enter song title"
+                        value={newSong.title}
+                        onChange={(e) => setNewSong(prev => ({ ...prev, title: e.target.value }))}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Album Name <span className="text-muted-foreground font-normal">(optional, defaults to "Singles")</span></label>
+                      <Input
+                        type="text"
+                        placeholder="Singles"
+                        value={newSong.albumName}
+                        onChange={(e) => setNewSong(prev => ({ ...prev, albumName: e.target.value }))}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Audio File *</label>
+                      <input
+                        ref={newSongAudioRef}
+                        type="file"
+                        accept="audio/*"
+                        onChange={(e) => setNewSong(prev => ({ ...prev, audioFile: e.target.files?.[0] || null }))}
+                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
+                      />
+                      {newSong.audioFile && (
+                        <p className="text-xs text-green-400 mt-1">✓ {newSong.audioFile.name}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Cover Image <span className="text-muted-foreground font-normal">(optional)</span></label>
+                      <input
+                        ref={newSongCoverRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setNewSong(prev => ({ ...prev, coverFile: e.target.files?.[0] || null }))}
+                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-muted file:text-muted-foreground hover:file:bg-muted/80 file:cursor-pointer cursor-pointer"
+                      />
+                      {newSong.coverFile && (
+                        <p className="text-xs text-green-400 mt-1">✓ {newSong.coverFile.name}</p>
+                      )}
                     </div>
                   </div>
-                )}
+                  <div className="p-6 border-t border-border flex gap-3 justify-end">
+                    <Button variant="outline" onClick={() => setShowUploadModal(false)}>Cancel</Button>
+                    <Button 
+                      onClick={handleNewSongUpload} 
+                      disabled={uploadingNewSong || !newSong.title || !newSong.audioFile}
+                      className="gap-2"
+                    >
+                      {uploadingNewSong ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                      {uploadingNewSong ? "Uploading..." : "Upload Song"}
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
