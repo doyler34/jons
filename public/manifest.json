@@ -3,10 +3,9 @@
   "short_name": "Jon Spirit",
   "description": "Stream music from Jon Spirit - Underground Hip-Hop Artist",
   "start_url": "/music",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
-  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/icon-192.png",
