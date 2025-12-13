@@ -132,6 +132,30 @@ export default function MusicPage() {
     setIsPlaying(true)
   }
 
+  // Get all playable tracks for skip functionality
+  const getAllTracks = (): TrackDisplay[] => {
+    if (selectedAlbum) {
+      return selectedAlbum.tracks.map(getTrackWithOverride)
+    }
+    return topTracks
+  }
+
+  const handlePrevious = () => {
+    const tracks = getAllTracks()
+    const currentIndex = tracks.findIndex(t => t.id === currentTrack?.id)
+    if (currentIndex > 0) {
+      playTrack(tracks[currentIndex - 1])
+    }
+  }
+
+  const handleNext = () => {
+    const tracks = getAllTracks()
+    const currentIndex = tracks.findIndex(t => t.id === currentTrack?.id)
+    if (currentIndex < tracks.length - 1) {
+      playTrack(tracks[currentIndex + 1])
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -256,6 +280,8 @@ export default function MusicPage() {
             }}
             isPlaying={isPlaying}
             setIsPlaying={setIsPlaying}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
           />
         )}
       </div>
@@ -376,6 +402,8 @@ export default function MusicPage() {
           }}
           isPlaying={isPlaying}
           setIsPlaying={setIsPlaying}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
         />
       )}
     </div>
