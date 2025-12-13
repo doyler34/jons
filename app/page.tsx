@@ -26,6 +26,11 @@ interface SpotifyData {
   albums: { id: string }[]
 }
 
+interface SongOverride {
+  audio_url: string | null
+  cover_url: string | null
+}
+
 function formatFollowers(count: number): string {
   if (count >= 1000000) {
     return `${(count / 1000000).toFixed(1)}M`
@@ -48,17 +53,22 @@ export default function Home() {
   const [showPlayer, setShowPlayer] = useState(false)
 
   useEffect(() => {
-    fetch("/api/spotify")
-      .then((res) => res.json())
-      .then((data) => {
+    Promise.all([
+      fetch("/api/spotify").then(res => res.json()),
+      fetch("/api/songs/overrides").then(res => res.json())
+    ])
+      .then(([data, overridesData]) => {
         setSpotifyData(data)
+        const overrides: Record<string, SongOverride> = overridesData.overrides || {}
+        
         if (data.topTracks?.[0]) {
           const track = data.topTracks[0]
+          const override = overrides[track.id]
           setCurrentTrack({
             title: track.name,
             duration: formatDuration(track.duration_ms),
-            image: track.album.images[0]?.url,
-            previewUrl: track.preview_url,
+            image: override?.cover_url || track.album.images[0]?.url,
+            previewUrl: override?.audio_url || track.preview_url,
           })
         }
       })
