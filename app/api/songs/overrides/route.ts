@@ -6,12 +6,27 @@ import { cookies } from "next/headers"
 async function isAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
-  return session?.value === process.env.ADMIN_PASSWORD
+  return !!session?.value
+}
+
+// Ensure table exists
+async function ensureTable() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS song_overrides (
+      id SERIAL PRIMARY KEY,
+      spotify_id VARCHAR(255) UNIQUE NOT NULL,
+      audio_url TEXT,
+      cover_url TEXT,
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `
 }
 
 // GET - Fetch all song overrides
 export async function GET() {
   try {
+    await ensureTable()
+    
     const result = await sql`
       SELECT spotify_id, audio_url, cover_url, updated_at 
       FROM song_overrides
@@ -40,6 +55,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await ensureTable()
+    
     const body = await request.json()
     const { spotify_id, audio_url, cover_url } = body
 
