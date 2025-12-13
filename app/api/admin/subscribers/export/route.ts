@@ -34,11 +34,11 @@ export async function GET() {
       let hasMore = true
 
       while (hasMore) {
-        const url = cursor 
+        const apiUrl: string = cursor 
           ? `https://connect.mailerlite.com/api/subscribers?limit=100&cursor=${cursor}`
           : "https://connect.mailerlite.com/api/subscribers?limit=100"
 
-        const response = await fetch(url, {
+        const response = await fetch(apiUrl, {
           headers: {
             "Authorization": `Bearer ${API_KEY}`,
             "Accept": "application/json",
