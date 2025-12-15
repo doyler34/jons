@@ -69,7 +69,7 @@ interface NewsletterTemplate {
   subject: string
   contentHtml: string
   type: "text" | "poster"
-  posterText?: string
+  posterHtml?: string
   buttonText?: string
   buttonLink?: string
   showButton?: boolean
@@ -96,6 +96,7 @@ export default function AdminDashboard() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const contentEditorRef = useRef<HTMLDivElement>(null)
+  const posterEditorRef = useRef<HTMLDivElement>(null)
 
   // Music management state
   const [albums, setAlbums] = useState<SpotifyAlbum[]>([])
@@ -122,7 +123,7 @@ export default function AdminDashboard() {
   const [newsletterType, setNewsletterType] = useState<"poster" | "text">("poster")
   const [subject, setSubject] = useState("")
   const [content, setContentHtml] = useState("")
-  const [posterText, setPosterText] = useState("")
+  const [posterHtml, setPosterHtml] = useState("")
   const [posterUrl, setPosterUrl] = useState("")
   const [buttonText, setButtonText] = useState("LISTEN NOW")
   const [buttonLink, setButtonLink] = useState("https://jonspirit.com/music")
@@ -430,6 +431,12 @@ export default function AdminDashboard() {
 
   const stripHtml = (html: string) => sanitizeClientHtml(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
 
+  const handlePosterInput = () => {
+    if (!posterEditorRef.current) return
+    const html = sanitizeClientHtml(posterEditorRef.current.innerHTML)
+    setPosterHtml(html)
+  }
+
   const buildPreviewHtml = () => {
     const header = `
       <tr>
@@ -472,24 +479,17 @@ export default function AdminDashboard() {
     }
 
     // Poster preview
-    const posterTextHtml = posterText
-      ? posterText
-          .split("\n")
-          .map((line) => line.trim())
-          .filter(Boolean)
-          .map((line) => `<p style="margin:0 0 12px 0;">${line}</p>`)
-          .join("")
-      : ""
+    const posterTextHtml = sanitizeClientHtml(posterHtml || "")
 
     const button = showButton && buttonText && buttonLink
-      ? `<tr>
-          <td align="center" style="padding:24px 0;">
+      ? `<div style="padding-top:24px;text-align:center;">
             <a href="${buttonLink}" style="display:inline-block;background-color:#dc2626;color:#ffffff;font-weight:bold;font-size:14px;padding:14px 32px;border-radius:6px;text-decoration:none;letter-spacing:1px;">
               ${buttonText}
             </a>
-          </td>
-        </tr>`
+          </div>`
       : ""
+
+    const safePosterBody = posterTextHtml || "<p style='color:#666;'>Add body text for this poster email...</p>"
 
     return `
     <div style="background:#0a0a0a;padding:24px;">
@@ -498,22 +498,17 @@ export default function AdminDashboard() {
           <td align="center" style="padding:0 12px;">
             <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;">
               ${header}
-              ${posterTextHtml ? `
               <tr>
-                <td style="padding-bottom:16px;">
-                  <div style="color:#d4d4d4;font-size:16px;line-height:1.7;text-align:center;">
-                    ${posterTextHtml}
-                  </div>
-                </td>
-              </tr>` : ""}
-              <tr>
-                <td align="center" style="padding-bottom:12px;">
+                <td style="background-color:#141414;border-radius:12px;padding:24px;border:1px solid #262626;">
                   ${posterUrl
-                    ? `<img src="${posterUrl}" alt="${subject || "Poster"}" style="max-width:100%;width:600px;height:auto;border-radius:8px;display:block;" />`
-                    : `<div style="width:100%;height:280px;border:1px dashed #333;border-radius:8px;color:#666;display:flex;align-items:center;justify-content:center;">Upload a poster to preview</div>`}
+                    ? `<div style="margin:0 auto 16px auto;max-width:100%;border-radius:8px;overflow:hidden;border:1px solid #262626;">
+                        <img src="${posterUrl}" alt="${subject || "Poster"}" style="display:block;width:100%;height:auto;" />
+                      </div>`
+                    : `<div style="width:100%;height:240px;border:1px dashed #333;border-radius:8px;color:#666;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">Upload a poster to preview</div>`}
+                  <div style="color:#d4d4d4;font-size:15px;line-height:1.6;">${safePosterBody}</div>
+                  ${button}
                 </td>
               </tr>
-              ${button}
             </table>
           </td>
         </tr>
@@ -535,7 +530,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setPreviewHtml(buildPreviewHtml())
-  }, [content, newsletterType, subject, posterUrl, posterText, buttonText, buttonLink, showButton])
+  }, [content, newsletterType, subject, posterUrl, posterHtml, buttonText, buttonLink, showButton])
 
   const addEmoji = (emoji: string) => {
     setSubject(prev => prev + emoji)
@@ -551,6 +546,18 @@ export default function AdminDashboard() {
       setContentHtml(html)
     } else {
       setContentHtml(prev => prev + emoji)
+    }
+  }
+
+  const addEmojiToPoster = (emoji: string) => {
+    if (newsletterType !== "poster") return
+    if (posterEditorRef.current) {
+      posterEditorRef.current.focus()
+      document.execCommand("insertText", false, emoji)
+      const html = sanitizeClientHtml(posterEditorRef.current.innerHTML)
+      setPosterHtml(html)
+    } else {
+      setPosterHtml((prev) => prev + emoji)
     }
   }
 
@@ -582,10 +589,24 @@ export default function AdminDashboard() {
     handleContentInput()
   }
 
+  const runPosterCommand = (command: string, value?: string) => {
+    if (!posterEditorRef.current) return
+    posterEditorRef.current.focus()
+    document.execCommand(command, false, value)
+    handlePosterInput()
+  }
+
   const addLinkToContent = () => {
     const url = prompt("Add link URL")
     if (url) {
       runCommand("createLink", url)
+    }
+  }
+
+  const addLinkToPoster = () => {
+    const url = prompt("Add link URL")
+    if (url) {
+      runPosterCommand("createLink", url)
     }
   }
 
@@ -602,8 +623,8 @@ export default function AdminDashboard() {
       name: templateName.trim(),
       subject,
       contentHtml: sanitizeClientHtml(content),
+      posterHtml: sanitizeClientHtml(posterHtml),
       type: newsletterType,
-      posterText,
       buttonText,
       buttonLink,
       showButton,
@@ -621,7 +642,7 @@ export default function AdminDashboard() {
     const tpl = templates.find((t) => t.name === name)
     if (!tpl) return
     setSubject(tpl.subject)
-    setPosterText(tpl.posterText || "")
+    setPosterHtml(tpl.posterHtml || "")
     setButtonText(tpl.buttonText || "LISTEN NOW")
     setButtonLink(tpl.buttonLink || "https://jonspirit.com/music")
     setShowButton(tpl.showButton ?? true)
@@ -629,6 +650,9 @@ export default function AdminDashboard() {
     setNewsletterType(tpl.type)
     if (contentEditorRef.current) {
       contentEditorRef.current.innerHTML = tpl.contentHtml || ""
+    }
+    if (posterEditorRef.current) {
+      posterEditorRef.current.innerHTML = tpl.posterHtml || ""
     }
     setSendStatus({ type: "success", message: `Applied template "${tpl.name}"` })
   }
@@ -663,7 +687,7 @@ export default function AdminDashboard() {
       subject,
       type: newsletterType,
       posterUrl: newsletterType === "poster" ? posterUrl : undefined,
-      posterText: newsletterType === "poster" && posterText.trim() ? posterText : undefined,
+      posterText: newsletterType === "poster" && stripHtml(posterHtml) ? posterHtml : undefined,
       htmlContent: newsletterType === "text" ? sanitizeClientHtml(content) : undefined,
       buttonText: showButton ? buttonText : undefined,
       buttonLink: showButton ? buttonLink : undefined,
@@ -689,12 +713,13 @@ export default function AdminDashboard() {
         setSendStatus({ type: "success", message: data.message || (sendMode === "schedule" ? "Newsletter scheduled!" : "Newsletter sent!") })
         setSubject("")
         setContentHtml("")
-        setPosterText("")
+        setPosterHtml("")
         setPosterUrl("")
         setScheduledAt("")
         setSendMode("now")
         if (fileInputRef.current) fileInputRef.current.value = ""
         if (contentEditorRef.current) contentEditorRef.current.innerHTML = ""
+        if (posterEditorRef.current) posterEditorRef.current.innerHTML = ""
         fetchNewsletterStats()
       } else {
         setSendStatus({ type: "error", message: data.error || "Failed to send" })
@@ -1572,29 +1597,51 @@ export default function AdminDashboard() {
                 <>
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      Text Above Poster <span className="text-muted-foreground font-normal">(optional)</span>
+                      Poster Body Text (rich)
                     </label>
                     <div className="space-y-2">
-                      <div className="flex gap-1 flex-wrap pb-2">
+                      <div className="flex gap-1 flex-wrap pb-1">
                         {EMOJI_LIST.slice(0, 8).map((emoji) => (
                           <button
                             key={emoji}
                             type="button"
-                            onClick={() => setPosterText(prev => prev + emoji)}
+                            onClick={() => addEmojiToPoster(emoji)}
                             className="text-lg hover:bg-muted p-1 rounded"
                           >
                             {emoji}
                           </button>
                         ))}
                       </div>
-                      <textarea
-                        placeholder="Optional intro text before the poster..."
-                        value={posterText}
-                        onChange={(e) => setPosterText(e.target.value)}
-                        disabled={sending}
-                        rows={3}
-                        className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y"
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("bold")}>Bold</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("italic")}>Italic</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("underline")}>Underline</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("insertUnorderedList")}>Bullet List</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("insertOrderedList")}>Numbered List</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("formatBlock", "h3")}>Heading</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={addLinkToPoster}>Add Link</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("formatBlock", "h2")}>H2</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("formatBlock", "h1")}>H1</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("formatBlock", "blockquote")}>Quote</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("justifyLeft")}>Left</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("justifyCenter")}>Center</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("justifyRight")}>Right</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => runPosterCommand("removeFormat")}>Clear</Button>
+                      </div>
+
+                      <div
+                        ref={posterEditorRef}
+                        contentEditable
+                        suppressContentEditableWarning
+                        onInput={handlePosterInput}
+                        className="w-full min-h-[160px] bg-input border border-border rounded-md px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 prose prose-invert max-w-none"
+                        data-placeholder="Add poster email body text..."
+                        dangerouslySetInnerHTML={{ __html: posterHtml || "" }}
                       />
+                      <p className="text-xs text-muted-foreground">
+                        Same email template styling as text emails; poster image sits above this content.
+                      </p>
                     </div>
                   </div>
 
@@ -1795,7 +1842,7 @@ export default function AdminDashboard() {
                       Save Template
                     </Button>
                     <select
-                      className="flex-1 bg-input border border-border rounded-md px-3 py-2 text-sm"
+                      className="bg-input border border-border rounded-md px-3 py-2 text-sm min-w-[160px] max-w-[200px]"
                       defaultValue=""
                       onChange={(e) => {
                         if (e.target.value) applyTemplate(e.target.value)
@@ -1868,12 +1915,12 @@ export default function AdminDashboard() {
                       />
                     ) : (
                       <div className="space-y-3">
-                        {posterUrl ? (
-                          <img src={posterUrl} alt="Poster preview" className="max-w-full rounded-lg border border-border" />
-                        ) : (
-                          <p className="text-sm text-muted-foreground">Upload a poster to preview</p>
-                        )}
-                        {posterText && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{posterText}</p>}
+                        <div
+                          className="prose prose-invert max-w-none text-foreground"
+                          dangerouslySetInnerHTML={{
+                            __html: previewHtml || "<p class='text-muted-foreground'>Upload a poster and add body text to preview.</p>",
+                          }}
+                        />
                       </div>
                     )}
                   </div>

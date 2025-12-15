@@ -495,6 +495,7 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = getBaseUrl(request)
     const sanitizedContent = sanitizeHtml(htmlContent || "")
+    const sanitizedPoster = sanitizeHtml(posterText || "")
 
     const scheduleDate = sendMode === "schedule" && scheduledAt ? new Date(scheduledAt) : null
     const isScheduled = scheduleDate ? scheduleDate.getTime() > Date.now() : false
@@ -506,7 +507,7 @@ export async function POST(request: NextRequest) {
         ${type},
         ${type === "text" ? sanitizedContent : null},
         ${posterUrl || null},
-        ${posterText || null},
+        ${type === "poster" ? sanitizedPoster : null},
         ${buttonText || null},
         ${buttonLink || null},
         ${isScheduled ? STATUS_SCHEDULED : STATUS_SENDING},
@@ -523,7 +524,7 @@ export async function POST(request: NextRequest) {
 
     const emailHTML =
       type === "poster"
-        ? generatePosterEmailHTML(subject, posterUrl!, posterText, buttonText, buttonLink, baseUrl, sendId)
+        ? generatePosterEmailHTML(subject, posterUrl!, sanitizedPoster, buttonText, buttonLink, baseUrl, sendId)
         : generateTextEmailHTML(subject, sanitizedContent, buttonText, buttonLink, baseUrl, sendId)
 
     const sendResult = await sendWithMailerLite(subject, emailHTML, API_KEY)
