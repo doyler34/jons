@@ -669,7 +669,15 @@ export default function AdminDashboard() {
       return
     }
 
-    if (!confirm(`Send newsletter "${subject}" ${sendMode === "schedule" ? "as a draft in MailerLite" : "now"} to all ${subscriberCount || 0} subscribers?`)) {
+    if (sendMode === "schedule") {
+      const scheduleDate = scheduledAt ? new Date(scheduledAt) : null
+      if (!scheduleDate || isNaN(scheduleDate.getTime()) || scheduleDate.getTime() <= Date.now()) {
+        setSendStatus({ type: "error", message: "Choose a future date/time to schedule in MailerLite" })
+        return
+      }
+    }
+
+    if (!confirm(`Send newsletter "${subject}" ${sendMode === "schedule" ? "scheduled via MailerLite" : "now"} to all ${subscriberCount || 0} subscribers?`)) {
       return
     }
 

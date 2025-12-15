@@ -305,7 +305,8 @@ const sendWithMailerLite = async (
   subject: string,
   html: string,
   API_KEY: string,
-  mode: "send" | "draft" = "send"
+  mode: "send" | "draft" | "schedule" = "send",
+  scheduledAt?: string
 ) => {
   const isNewApi = API_KEY.startsWith("eyJ")
 
@@ -360,10 +361,31 @@ const sendWithMailerLite = async (
     }
 
     // New MailerLite API:
-    // - mode "draft": just create the campaign (it appears as a draft in MailerLite)
-    // - mode "send": schedule it for instant delivery
+    // - mode "draft": just create the campaign (shows as draft in MailerLite)
+    // - mode "send": send immediately
+    // - mode "schedule": schedule in MailerLite for the provided date/time
     if (mode === "draft") {
       return { ok: true, campaignId }
+    }
+
+    let scheduleBody: Record<string, unknown> = { delivery: "instant" }
+
+    if (mode === "schedule" && scheduledAt) {
+      const date = new Date(scheduledAt)
+      if (!isNaN(date.getTime())) {
+        const iso = date.toISOString()
+        const [isoDate, isoTime] = iso.split("T")
+        const [hours, minutes] = isoTime.split(":")
+
+        scheduleBody = {
+          delivery: "scheduled",
+          schedule: {
+            date: isoDate,
+            hours,
+            minutes,
+          },
+        }
+      }
     }
 
     const sendResponse = await fetch(`https://connect.mailerlite.com/api/campaigns/${campaignId}/schedule`, {
@@ -373,9 +395,7 @@ const sendWithMailerLite = async (
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({
-        delivery: "instant",
-      }),
+      body: JSON.stringify(scheduleBody),
     })
 
     const sendResponseText = await sendResponse.text()
@@ -438,7 +458,8 @@ const sendWithMailerLite = async (
   // Classic MailerLite API:
   // - mode "draft": campaign with content is saved as a draft
   // - mode "send": also trigger the send action
-  if (mode === "draft") {
+  // - mode "schedule": not supported via classic API → fall back to draft only
+  if (mode === "draft" || mode === "schedule") {
     return { ok: true, campaignId }
   }
 
@@ -543,8 +564,14 @@ export async function POST(request: NextRequest) {
 
     // Behavior:
     // - sendMode "now": send immediately
-    // - sendMode "schedule": create a draft campaign in MailerLite (no automatic send)
-    const sendResult = await sendWithMailerLite(subject, emailHTML, API_KEY, isScheduled ? "draft" : "send")
+    // - sendMode "schedule": schedule in MailerLite for the chosen time
+    const sendResult = await sendWithMailerLite(
+      subject,
+      emailHTML,
+      API_KEY,
+      isScheduled ? "schedule" : "send",
+      scheduledAt
+    )
 
     if (!sendResult.ok) {
       await sql`
@@ -556,15 +583,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: sendResult.error || "Failed to send newsletter" }, { status: 400 })
     }
 
-    await sql`
-      UPDATE newsletter_sends
-      SET status = ${STATUS_SENT}, sent_at = NOW(), error = NULL
-      WHERE id = ${sendId}
-    `
+    if (isScheduled) {
+      await sql`
+        UPDATE newsletter_sends
+        SET status = ${STATUS_SCHEDULED}, sent_at = NULL, error = NULL
+        WHERE id = ${sendId}
+      `
+    } else {
+      await sql`
+        UPDATE newsletter_sends
+        SET status = ${STATUS_SENT}, sent_at = NOW(), error = NULL
+        WHERE id = ${sendId}
+      `
+    }
 
     return NextResponse.json({
       success: true,
-      message: isScheduled ? "Newsletter drafted to MailerLite." : "Newsletter sent successfully!",
+      message: isScheduled ? "Newsletter scheduled in MailerLite." : "Newsletter sent successfully!",
       campaignId: sendResult.campaignId,
       sendId,
     })
