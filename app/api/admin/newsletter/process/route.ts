@@ -352,31 +352,7 @@ const sendWithMailerLite = async (subject: string, html: string, API_KEY: string
       return { ok: false, error: "Failed to get campaign ID" }
     }
 
-    const sendResponse = await fetch(`https://connect.mailerlite.com/api/campaigns/${campaignId}/schedule`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${API_KEY}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        delivery: "instant",
-      }),
-    })
-
-    const sendResponseText = await sendResponse.text()
-
-    if (!sendResponse.ok) {
-      let error
-      try {
-        error = JSON.parse(sendResponseText)
-      } catch {
-        error = { message: sendResponseText }
-      }
-      console.error("Campaign send error:", error)
-      return { ok: false, error: error.message || "Campaign created but failed to send", campaignId }
-    }
-
+    // New MailerLite API: campaign is created as a draft; do NOT schedule/send it.
     return { ok: true, campaignId }
   }
 
@@ -421,19 +397,7 @@ const sendWithMailerLite = async (subject: string, html: string, API_KEY: string
     }),
   })
 
-  const sendResponse = await fetch(`https://api.mailerlite.com/api/v2/campaigns/${campaignId}/actions/send`, {
-    method: "POST",
-    headers: {
-      "X-MailerLite-ApiKey": API_KEY,
-    },
-  })
-
-  if (!sendResponse.ok) {
-    const error = await sendResponse.json()
-    console.error("Campaign send error:", error)
-    return { ok: false, error: error.error?.message || "Campaign created but failed to send", campaignId }
-  }
-
+  // Classic MailerLite API: campaign with content is created as a draft; do NOT send it.
   return { ok: true, campaignId }
 }
 
