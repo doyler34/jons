@@ -49,6 +49,7 @@ interface TrackDisplay {
 interface SongOverride {
   audio_url: string | null
   cover_url: string | null
+  hidden?: boolean
 }
 
 function formatDuration(ms: number): string {
@@ -83,7 +84,8 @@ export default function MusicPage() {
 
         const spotifyData = await spotifyRes.json()
         const overridesData = await overridesRes.json()
-        setOverrides(overridesData.overrides || {})
+        const overridesMap: Record<string, SongOverride> = overridesData.overrides || {}
+        setOverrides(overridesMap)
 
         // Set albums with tracks
         if (spotifyData.albumsWithTracks) {
@@ -92,17 +94,20 @@ export default function MusicPage() {
 
         // Set top tracks
         if (spotifyData.topTracks) {
-          const formatted = spotifyData.topTracks.map((track: SpotifyTrack) => ({
-            id: track.id,
-            title: track.name,
-            duration: formatDuration(track.duration_ms),
-            durationMs: track.duration_ms,
-            image: track.album.images[0]?.url || "/placeholder.svg",
-            previewUrl: track.preview_url,
-            spotifyUrl: track.external_urls.spotify,
-            albumName: track.album.name,
-            albumId: track.album.id,
-          }))
+          const formatted = spotifyData.topTracks
+            // Hide tracks that are marked hidden in overrides
+            .filter((track: SpotifyTrack) => !overridesMap[track.id]?.hidden)
+            .map((track: SpotifyTrack) => ({
+              id: track.id,
+              title: track.name,
+              duration: formatDuration(track.duration_ms),
+              durationMs: track.duration_ms,
+              image: (overridesMap[track.id]?.cover_url as string | null) || track.album.images[0]?.url || "/placeholder.svg",
+              previewUrl: (overridesMap[track.id]?.audio_url as string | null) || track.preview_url,
+              spotifyUrl: track.external_urls.spotify,
+              albumName: track.album.name,
+              albumId: track.album.id,
+            }))
           setTopTracks(formatted)
           
           // Try to restore saved track from localStorage (for iOS PWA)
@@ -165,7 +170,10 @@ export default function MusicPage() {
 
   // Album Detail View
   if (selectedAlbum) {
-    const albumTracks = selectedAlbum.tracks.map(getTrackWithOverride)
+    const albumTracks = selectedAlbum.tracks
+      // Hide tracks that are marked hidden in overrides
+      .filter((track) => !overrides[track.id]?.hidden)
+      .map(getTrackWithOverride)
     const totalDuration = selectedAlbum.tracks.reduce((acc, t) => acc + t.duration_ms, 0)
 
     return (

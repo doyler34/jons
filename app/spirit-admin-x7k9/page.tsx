@@ -1880,7 +1880,7 @@ export default function AdminDashboard() {
                         checked={sendMode === "schedule"}
                         onChange={() => setSendMode("schedule")}
                       />
-                      Schedule
+                      Schedule in MailerLite
                     </label>
                     {sendMode === "schedule" && (
                       <input
@@ -1891,7 +1891,7 @@ export default function AdminDashboard() {
                       />
                     )}
                     <p className="text-xs text-muted-foreground">
-                      If scheduling support is unavailable on the server, the email will send immediately.
+                      This will create the campaign and schedule it at the time you pick using MailerLite&apos;s \"Send later\" feature.
                     </p>
                   </div>
                 </div>
