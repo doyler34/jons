@@ -1767,9 +1767,7 @@ export default function AdminDashboard() {
                     contentEditable
                     suppressContentEditableWarning
                     onInput={handleContentInput}
-                    className="w-full min-h-[220px] bg-input border border-border rounded-md px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 prose prose-invert max-w-none"
-                    data-placeholder="Write your newsletter content here..."
-                    dangerouslySetInnerHTML={{ __html: content || "" }}
+                    className="w-full min-h-[220px] bg-input border border-border rounded-md px-3 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 prose prose-invert max-w-none"
                   />
                   <p className="text-xs text-muted-foreground">
                     Supports bold, italic, headings, lists, links, and personalization tokens.
