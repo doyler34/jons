@@ -499,6 +499,7 @@ export async function POST(request: NextRequest) {
 
     const scheduleDate = sendMode === "schedule" && scheduledAt ? new Date(scheduledAt) : null
     const isScheduled = scheduleDate ? scheduleDate.getTime() > Date.now() : false
+    const schedulingAvailable = !!process.env.NEWSLETTER_PROCESS_SECRET
 
     const insertResult = await sql`
       INSERT INTO newsletter_sends (subject, type, body_html, poster_url, poster_text, button_text, button_link, status, scheduled_at)
@@ -518,7 +519,7 @@ export async function POST(request: NextRequest) {
 
     const sendId = insertResult.rows[0]?.id as number
 
-    if (isScheduled) {
+    if (isScheduled && schedulingAvailable) {
       return NextResponse.json({ success: true, message: "Newsletter scheduled", sendId })
     }
 

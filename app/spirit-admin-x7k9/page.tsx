@@ -1635,9 +1635,7 @@ export default function AdminDashboard() {
                         contentEditable
                         suppressContentEditableWarning
                         onInput={handlePosterInput}
-                        className="w-full min-h-[160px] bg-input border border-border rounded-md px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 prose prose-invert max-w-none"
-                        data-placeholder="Add poster email body text..."
-                        dangerouslySetInnerHTML={{ __html: posterHtml || "" }}
+                        className="w-full min-h-[160px] bg-input border border-border rounded-md px-3 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 prose prose-invert max-w-none"
                       />
                       <p className="text-xs text-muted-foreground">
                         Same email template styling as text emails; poster image sits above this content.
@@ -1842,7 +1840,7 @@ export default function AdminDashboard() {
                       Save Template
                     </Button>
                     <select
-                      className="bg-input border border-border rounded-md px-3 py-2 text-sm min-w-[160px] max-w-[200px]"
+                      className="bg-input border border-border rounded-md px-3 py-1.5 text-sm w-[150px]"
                       defaultValue=""
                       onChange={(e) => {
                         if (e.target.value) applyTemplate(e.target.value)
