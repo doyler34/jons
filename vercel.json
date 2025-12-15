@@ -1,0 +1,10 @@
+{
+  "crons": [
+    {
+      "path": "/api/admin/newsletter/process",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
+
+

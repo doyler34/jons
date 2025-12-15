@@ -440,10 +440,16 @@ const sendWithMailerLite = async (subject: string, html: string, API_KEY: string
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
-  const processSecret = request.headers.get("x-process-secret")
+
+  const authHeader = request.headers.get("authorization")
+  const bearerToken =
+    authHeader && authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : null
 
   const allowed =
-    !!session?.value || (process.env.NEWSLETTER_PROCESS_SECRET && processSecret === process.env.NEWSLETTER_PROCESS_SECRET)
+    !!session?.value ||
+    (process.env.CRON_SECRET && bearerToken === process.env.CRON_SECRET)
 
   if (!allowed) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
