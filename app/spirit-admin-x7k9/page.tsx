@@ -401,7 +401,7 @@ export default function AdminDashboard() {
     try {
       const parser = new DOMParser()
       const doc = parser.parseFromString(html || "", "text/html")
-      const allowedTags = new Set(["b", "strong", "i", "em", "u", "p", "br", "ul", "ol", "li", "a", "h1", "h2", "h3", "h4", "h5", "h6", "span"])
+      const allowedTags = new Set(["b", "strong", "i", "em", "u", "p", "br", "ul", "ol", "li", "a", "h1", "h2", "h3", "h4", "h5", "h6", "span", "blockquote"])
       const allowedAttrs = new Set(["href", "target", "rel"])
 
       doc.querySelectorAll("*").forEach((el) => {
@@ -430,6 +430,97 @@ export default function AdminDashboard() {
 
   const stripHtml = (html: string) => sanitizeClientHtml(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
 
+  const buildPreviewHtml = () => {
+    const header = `
+      <tr>
+        <td align="center" style="padding-bottom:24px;">
+          <h1 style="margin:0;font-size:28px;font-weight:bold;color:#d8d0bf;font-family:'Brush Script MT','Lucida Handwriting',Georgia,cursive;">
+            JON SPIRIT
+          </h1>
+        </td>
+      </tr>`
+
+    if (newsletterType === "text") {
+      const safeContent = sanitizeClientHtml(content || "")
+      const button = showButton && buttonText && buttonLink
+        ? `<div style="padding-top:24px;">
+            <a href="${buttonLink}" style="display:inline-block;background-color:#dc2626;color:#ffffff;font-weight:bold;font-size:14px;padding:14px 32px;border-radius:6px;text-decoration:none;letter-spacing:1px;">
+              ${buttonText}
+            </a>
+          </div>`
+        : ""
+
+      return `
+      <div style="background:#0a0a0a;padding:24px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0a0a0a;">
+          <tr>
+            <td align="center" style="padding:0 12px;">
+              <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;">
+                ${header}
+                <tr>
+                  <td style="background-color:#141414;border-radius:12px;padding:32px;border:1px solid #262626;">
+                    <h2 style="margin:0 0 16px 0;font-size:22px;font-weight:bold;color:#f5f5f5;">${subject || "Subject"}</h2>
+                    <div style="color:#d4d4d4;font-size:15px;line-height:1.6;">${safeContent || "<p style='color:#666;'>Start writing your email content...</p>"}</div>
+                    ${button}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>`
+    }
+
+    // Poster preview
+    const posterTextHtml = posterText
+      ? posterText
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => `<p style="margin:0 0 12px 0;">${line}</p>`)
+          .join("")
+      : ""
+
+    const button = showButton && buttonText && buttonLink
+      ? `<tr>
+          <td align="center" style="padding:24px 0;">
+            <a href="${buttonLink}" style="display:inline-block;background-color:#dc2626;color:#ffffff;font-weight:bold;font-size:14px;padding:14px 32px;border-radius:6px;text-decoration:none;letter-spacing:1px;">
+              ${buttonText}
+            </a>
+          </td>
+        </tr>`
+      : ""
+
+    return `
+    <div style="background:#0a0a0a;padding:24px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0a0a0a;">
+        <tr>
+          <td align="center" style="padding:0 12px;">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;">
+              ${header}
+              ${posterTextHtml ? `
+              <tr>
+                <td style="padding-bottom:16px;">
+                  <div style="color:#d4d4d4;font-size:16px;line-height:1.7;text-align:center;">
+                    ${posterTextHtml}
+                  </div>
+                </td>
+              </tr>` : ""}
+              <tr>
+                <td align="center" style="padding-bottom:12px;">
+                  ${posterUrl
+                    ? `<img src="${posterUrl}" alt="${subject || "Poster"}" style="max-width:100%;width:600px;height:auto;border-radius:8px;display:block;" />`
+                    : `<div style="width:100%;height:280px;border:1px dashed #333;border-radius:8px;color:#666;display:flex;align-items:center;justify-content:center;">Upload a poster to preview</div>`}
+                </td>
+              </tr>
+              ${button}
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>`
+  }
+
   useEffect(() => {
     // Load saved templates (local only, no backend dependency)
     try {
@@ -443,12 +534,8 @@ export default function AdminDashboard() {
   }, [])
 
   useEffect(() => {
-    if (newsletterType === "text") {
-      setPreviewHtml(sanitizeClientHtml(content))
-    } else {
-      setPreviewHtml("")
-    }
-  }, [content, newsletterType])
+    setPreviewHtml(buildPreviewHtml())
+  }, [content, newsletterType, subject, posterUrl, posterText, buttonText, buttonLink, showButton])
 
   const addEmoji = (emoji: string) => {
     setSubject(prev => prev + emoji)
@@ -1607,6 +1694,27 @@ export default function AdminDashboard() {
                     <Button type="button" variant="outline" size="sm" onClick={addLinkToContent}>
                       Add Link
                     </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("formatBlock", "h2")}>
+                      H2
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("formatBlock", "h1")}>
+                      H1
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("formatBlock", "blockquote")}>
+                      Quote
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("justifyLeft")}>
+                      Left
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("justifyCenter")}>
+                      Center
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("justifyRight")}>
+                      Right
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("removeFormat")}>
+                      Clear
+                    </Button>
                   </div>
 
                   <div
@@ -1752,21 +1860,23 @@ export default function AdminDashboard() {
                     <h4 className="font-semibold text-sm">Live preview</h4>
                     <span className="text-xs text-muted-foreground">Subject: {subject || "—"}</span>
                   </div>
-                  {newsletterType === "text" ? (
-                    <div
-                      className="prose prose-invert max-w-none bg-input/40 border border-border rounded-md p-4 text-foreground"
-                      dangerouslySetInnerHTML={{ __html: previewHtml || "<p class='text-muted-foreground'>Content preview...</p>" }}
-                    />
-                  ) : (
-                    <div className="space-y-2">
-                      {posterUrl ? (
-                        <img src={posterUrl} alt="Poster preview" className="max-w-full rounded-lg border border-border" />
-                      ) : (
-                        <p className="text-sm text-muted-foreground">Upload a poster to preview</p>
-                      )}
-                      {posterText && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{posterText}</p>}
-                    </div>
-                  )}
+                  <div className="border border-border rounded-md bg-input/40 max-h-[520px] overflow-auto p-4">
+                    {newsletterType === "text" ? (
+                      <div
+                        className="prose prose-invert max-w-none text-foreground"
+                        dangerouslySetInnerHTML={{ __html: previewHtml || "<p class='text-muted-foreground'>Content preview...</p>" }}
+                      />
+                    ) : (
+                      <div className="space-y-3">
+                        {posterUrl ? (
+                          <img src={posterUrl} alt="Poster preview" className="max-w-full rounded-lg border border-border" />
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Upload a poster to preview</p>
+                        )}
+                        {posterText && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{posterText}</p>}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
