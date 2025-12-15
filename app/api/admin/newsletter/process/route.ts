@@ -26,6 +26,8 @@ const ensureTables = async () => {
     )
   `
 
+  await sql`ALTER TABLE newsletter_sends ADD COLUMN IF NOT EXISTS campaign_id TEXT`
+
   await sql`
     CREATE TABLE IF NOT EXISTS newsletter_events (
       id SERIAL PRIMARY KEY,
@@ -465,6 +467,14 @@ export async function POST(request: NextRequest) {
           WHERE id = ${sendId}
         `
         continue
+      }
+
+      if (sendResult.campaignId) {
+        await sql`
+          UPDATE newsletter_sends
+          SET campaign_id = ${sendResult.campaignId}
+          WHERE id = ${sendId}
+        `
       }
 
       sent += 1

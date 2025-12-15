@@ -2554,6 +2554,7 @@ export default function AdminDashboard() {
                         <th className="py-2 pr-4 font-medium">Sent/Scheduled</th>
                         <th className="py-2 pr-4 font-medium">Opens</th>
                         <th className="py-2 pr-4 font-medium">Clicks</th>
+                        <th className="py-2 pr-4 font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2570,6 +2571,100 @@ export default function AdminDashboard() {
                           </td>
                           <td className="py-2 pr-4">{stat.open_count ?? 0}</td>
                           <td className="py-2 pr-4">{stat.click_count ?? 0}</td>
+                          <td className="py-2 pr-4">
+                            <div className="flex flex-wrap gap-2">
+                              {stat.status === "scheduled" && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (!confirm(`Cancel scheduled newsletter "${stat.subject}"?`)) return
+                                      try {
+                                        const res = await fetch(`/api/admin/newsletter/${stat.id}`, {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ action: "cancel" }),
+                                        })
+                                        if (!res.ok) {
+                                          const data = await res.json().catch(() => ({}))
+                                          throw new Error(data.error || "Failed to cancel")
+                                        }
+                                        setNewsletterStats((prev) =>
+                                          prev.map((s) => (s.id === stat.id ? { ...s, status: "cancelled" } : s))
+                                        )
+                                        setSendStatus({
+                                          type: "success",
+                                          message:
+                                            "Scheduled newsletter cancelled in your dashboard. If it was already scheduled in MailerLite, cancel it there too.",
+                                        })
+                                      } catch (error) {
+                                        console.error(error)
+                                        setSendStatus({ type: "error", message: "Failed to cancel scheduled newsletter" })
+                                      }
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (!confirm(`Delete scheduled newsletter "${stat.subject}" from history?`)) return
+                                      try {
+                                        const res = await fetch(`/api/admin/newsletter/${stat.id}`, {
+                                          method: "DELETE",
+                                        })
+                                        if (!res.ok) {
+                                          const data = await res.json().catch(() => ({}))
+                                          throw new Error(data.error || "Failed to delete")
+                                        }
+                                        setNewsletterStats((prev) => prev.filter((s) => s.id !== stat.id))
+                                        setSendStatus({
+                                          type: "success",
+                                          message:
+                                            "Scheduled newsletter removed from history. If it was scheduled in MailerLite, delete/cancel it there too.",
+                                        })
+                                      } catch (error) {
+                                        console.error(error)
+                                        setSendStatus({ type: "error", message: "Failed to delete scheduled newsletter" })
+                                      }
+                                    }}
+                                  >
+                                    Delete
+                                  </Button>
+                                </>
+                              )}
+                              {stat.status === "sent" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={async () => {
+                                    if (!confirm(`Delete sent newsletter "${stat.subject}" from history?`)) return
+                                    try {
+                                      const res = await fetch(`/api/admin/newsletter/${stat.id}`, {
+                                        method: "DELETE",
+                                      })
+                                      if (!res.ok) {
+                                        const data = await res.json().catch(() => ({}))
+                                        throw new Error(data.error || "Failed to delete")
+                                      }
+                                      setNewsletterStats((prev) => prev.filter((s) => s.id !== stat.id))
+                                      setSendStatus({
+                                        type: "success",
+                                        message: "Sent newsletter removed from history (MailerLite stats remain there).",
+                                      })
+                                    } catch (error) {
+                                      console.error(error)
+                                      setSendStatus({ type: "error", message: "Failed to delete sent newsletter" })
+                                    }
+                                  }}
+                                >
+                                  Delete
+                                </Button>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

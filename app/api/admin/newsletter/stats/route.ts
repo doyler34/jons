@@ -21,6 +21,8 @@ const ensureTables = async () => {
     )
   `
 
+  await sql`ALTER TABLE newsletter_sends ADD COLUMN IF NOT EXISTS campaign_id TEXT`
+
   await sql`
     CREATE TABLE IF NOT EXISTS newsletter_events (
       id SERIAL PRIMARY KEY,

@@ -28,6 +28,9 @@ const ensureTables = async () => {
     )
   `
 
+  // New MailerLite campaign id storage
+  await sql`ALTER TABLE newsletter_sends ADD COLUMN IF NOT EXISTS campaign_id TEXT`
+
   await sql`
     CREATE TABLE IF NOT EXISTS newsletter_events (
       id SERIAL PRIMARY KEY,
@@ -581,6 +584,15 @@ export async function POST(request: NextRequest) {
       `
 
       return NextResponse.json({ error: sendResult.error || "Failed to send newsletter" }, { status: 400 })
+    }
+
+    // Store MailerLite campaign id for later cancel/delete actions
+    if (sendResult.campaignId) {
+      await sql`
+        UPDATE newsletter_sends
+        SET campaign_id = ${sendResult.campaignId}
+        WHERE id = ${sendId}
+      `
     }
 
     if (isScheduled) {
