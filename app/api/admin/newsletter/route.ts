@@ -301,7 +301,12 @@ ${buttonHTML}
   return withTracking(html, baseUrl, sendId)
 }
 
-const sendWithMailerLite = async (subject: string, html: string, API_KEY: string) => {
+const sendWithMailerLite = async (
+  subject: string,
+  html: string,
+  API_KEY: string,
+  mode: "send" | "draft" = "send"
+) => {
   const isNewApi = API_KEY.startsWith("eyJ")
 
   if (isNewApi) {
@@ -352,6 +357,13 @@ const sendWithMailerLite = async (subject: string, html: string, API_KEY: string
 
     if (!campaignId) {
       return { ok: false, error: "Failed to get campaign ID" }
+    }
+
+    // New MailerLite API:
+    // - mode "draft": just create the campaign (it appears as a draft in MailerLite)
+    // - mode "send": schedule it for instant delivery
+    if (mode === "draft") {
+      return { ok: true, campaignId }
     }
 
     const sendResponse = await fetch(`https://connect.mailerlite.com/api/campaigns/${campaignId}/schedule`, {
@@ -422,6 +434,13 @@ const sendWithMailerLite = async (subject: string, html: string, API_KEY: string
       plain: `${subject} - View this email in your browser to see the full content.`,
     }),
   })
+
+  // Classic MailerLite API:
+  // - mode "draft": campaign with content is saved as a draft
+  // - mode "send": also trigger the send action
+  if (mode === "draft") {
+    return { ok: true, campaignId }
+  }
 
   const sendResponse = await fetch(`https://api.mailerlite.com/api/v2/campaigns/${campaignId}/actions/send`, {
     method: "POST",
@@ -497,8 +516,7 @@ export async function POST(request: NextRequest) {
     const sanitizedContent = sanitizeHtml(htmlContent || "")
     const sanitizedPoster = sanitizeHtml(posterText || "")
 
-    const scheduleDate = sendMode === "schedule" && scheduledAt ? new Date(scheduledAt) : null
-    const isScheduled = sendMode === "schedule" && !!scheduleDate
+    const isScheduled = sendMode === "schedule"
 
     const insertResult = await sql`
       INSERT INTO newsletter_sends (subject, type, body_html, poster_url, poster_text, button_text, button_link, status, scheduled_at)
@@ -511,23 +529,22 @@ export async function POST(request: NextRequest) {
         ${buttonText || null},
         ${buttonLink || null},
         ${isScheduled ? STATUS_SCHEDULED : STATUS_SENDING},
-        ${isScheduled && scheduleDate ? scheduleDate.toISOString() : null}
+        ${isScheduled && scheduledAt ? scheduledAt : null}
       )
       RETURNING id
     `
 
     const sendId = insertResult.rows[0]?.id as number
 
-    if (isScheduled) {
-      return NextResponse.json({ success: true, message: "Newsletter scheduled", sendId })
-    }
-
     const emailHTML =
       type === "poster"
         ? generatePosterEmailHTML(subject, posterUrl!, sanitizedPoster, buttonText, buttonLink, baseUrl, sendId)
         : generateTextEmailHTML(subject, sanitizedContent, buttonText, buttonLink, baseUrl, sendId)
 
-    const sendResult = await sendWithMailerLite(subject, emailHTML, API_KEY)
+    // Behavior:
+    // - sendMode "now": send immediately
+    // - sendMode "schedule": create a draft campaign in MailerLite (no automatic send)
+    const sendResult = await sendWithMailerLite(subject, emailHTML, API_KEY, isScheduled ? "draft" : "send")
 
     if (!sendResult.ok) {
       await sql`
@@ -547,7 +564,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Newsletter sent successfully!",
+      message: isScheduled ? "Newsletter drafted to MailerLite." : "Newsletter sent successfully!",
       campaignId: sendResult.campaignId,
       sendId,
     })

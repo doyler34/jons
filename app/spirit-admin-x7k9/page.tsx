@@ -668,15 +668,8 @@ export default function AdminDashboard() {
       setSendStatus({ type: "error", message: "Subject and content are required" })
       return
     }
-    if (sendMode === "schedule") {
-      const scheduleDate = scheduledAt ? new Date(scheduledAt) : null
-      if (!scheduleDate || isNaN(scheduleDate.getTime()) || scheduleDate.getTime() <= Date.now()) {
-        setSendStatus({ type: "error", message: "Choose a future date/time to schedule" })
-        return
-      }
-    }
 
-    if (!confirm(`Send newsletter "${subject}" ${sendMode === "schedule" ? "at the scheduled time" : "now"} to all ${subscriberCount || 0} subscribers?`)) {
+    if (!confirm(`Send newsletter "${subject}" ${sendMode === "schedule" ? "as a draft in MailerLite" : "now"} to all ${subscriberCount || 0} subscribers?`)) {
       return
     }
 
