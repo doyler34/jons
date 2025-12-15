@@ -38,11 +38,12 @@ const ensureTables = async () => {
   `
 }
 
-interface RouteParams {
-  params: { id: string }
+type RouteContext = {
+  params: Promise<{ id: string }>
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export async function POST(request: NextRequest, context: RouteContext) {
+  const { id: idParam } = await context.params
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
 
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const id = Number(params.id)
+  const id = Number(idParam)
   if (!id || Number.isNaN(id)) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 })
   }
@@ -115,7 +116,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+export async function DELETE(_request: NextRequest, context: RouteContext) {
+  const { id: idParam } = await context.params
+
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
 
@@ -123,7 +126,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const id = Number(params.id)
+  const id = Number(idParam)
   if (!id || Number.isNaN(id)) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 })
   }
