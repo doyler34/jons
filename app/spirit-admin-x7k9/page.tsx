@@ -64,6 +64,28 @@ interface Event {
   updated_at: string
 }
 
+interface NewsletterTemplate {
+  name: string
+  subject: string
+  contentHtml: string
+  type: "text" | "poster"
+  posterText?: string
+  buttonText?: string
+  buttonLink?: string
+  showButton?: boolean
+}
+
+interface NewsletterStat {
+  id: number
+  subject: string
+  status: string
+  sent_at: string | null
+  scheduled_at: string | null
+  open_count: number
+  click_count: number
+  created_at: string | null
+}
+
 const EMOJI_LIST = ["🔥", "🎵", "🎤", "💿", "🎧", "⚡", "💀", "👻", "🖤", "❤️", "🚨", "📢", "🆕", "✨", "💯", "🙏"]
 
 type TabType = "music" | "newsletter" | "subscribers" | "events" | "settings" | "analytics"
@@ -73,6 +95,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>("music")
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const contentEditorRef = useRef<HTMLDivElement>(null)
 
   // Music management state
   const [albums, setAlbums] = useState<SpotifyAlbum[]>([])
@@ -98,16 +121,26 @@ export default function AdminDashboard() {
   // Newsletter state
   const [newsletterType, setNewsletterType] = useState<"poster" | "text">("poster")
   const [subject, setSubject] = useState("")
-  const [content, setContent] = useState("")
+  const [content, setContentHtml] = useState("")
   const [posterText, setPosterText] = useState("")
   const [posterUrl, setPosterUrl] = useState("")
   const [buttonText, setButtonText] = useState("LISTEN NOW")
   const [buttonLink, setButtonLink] = useState("https://jonspirit.com/music")
   const [showButton, setShowButton] = useState(true)
+  const [sendMode, setSendMode] = useState<"now" | "schedule">("now")
+  const [scheduledAt, setScheduledAt] = useState("")
+  const [previewHtml, setPreviewHtml] = useState("")
+  const [showPreview, setShowPreview] = useState(true)
+  const [templates, setTemplates] = useState<NewsletterTemplate[]>([])
+  const [templateName, setTemplateName] = useState("")
   const [uploading, setUploading] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendStatus, setSendStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+
+  // Newsletter analytics
+  const [newsletterStats, setNewsletterStats] = useState<NewsletterStat[]>([])
+  const [loadingNewsletterStats, setLoadingNewsletterStats] = useState(false)
 
   // Events state
   const [events, setEvents] = useState<Event[]>([])
@@ -144,6 +177,7 @@ export default function AdminDashboard() {
         setAuthenticated(true)
         fetchMusic()
         fetchSubscribers()
+        fetchNewsletterStats()
         fetchManualSongs()
         fetchEvents()
         fetchSettings()
@@ -304,6 +338,21 @@ export default function AdminDashboard() {
     }
   }
 
+  const fetchNewsletterStats = async () => {
+    setLoadingNewsletterStats(true)
+    try {
+      const response = await fetch("/api/admin/newsletter/stats")
+      if (response.ok) {
+        const data = await response.json()
+        setNewsletterStats(data.stats || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch newsletter stats:", error)
+    } finally {
+      setLoadingNewsletterStats(false)
+    }
+  }
+
   const handleLogout = async () => {
     await fetch("/api/admin/auth", { method: "DELETE" })
     router.push("/spirit-admin-x7k9/login")
@@ -348,28 +397,175 @@ export default function AdminDashboard() {
     setSendStatus(null)
   }
 
+  const sanitizeClientHtml = (html: string) => {
+    try {
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(html || "", "text/html")
+      const allowedTags = new Set(["b", "strong", "i", "em", "u", "p", "br", "ul", "ol", "li", "a", "h1", "h2", "h3", "h4", "h5", "h6", "span"])
+      const allowedAttrs = new Set(["href", "target", "rel"])
+
+      doc.querySelectorAll("*").forEach((el) => {
+        if (!allowedTags.has(el.tagName.toLowerCase())) {
+          el.replaceWith(...Array.from(el.childNodes))
+          return
+        }
+
+        Array.from(el.attributes).forEach((attr) => {
+          const name = attr.name.toLowerCase()
+          if (name.startsWith("on") || !allowedAttrs.has(name)) {
+            el.removeAttribute(attr.name)
+          }
+        })
+
+        if (el.tagName.toLowerCase() === "a" && !el.getAttribute("rel")) {
+          el.setAttribute("rel", "noopener noreferrer")
+        }
+      })
+
+      return doc.body.innerHTML
+    } catch {
+      return html || ""
+    }
+  }
+
+  const stripHtml = (html: string) => sanitizeClientHtml(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
+
+  useEffect(() => {
+    // Load saved templates (local only, no backend dependency)
+    try {
+      const saved = localStorage.getItem("newsletterTemplates")
+      if (saved) {
+        setTemplates(JSON.parse(saved))
+      }
+    } catch (error) {
+      console.error("Failed to load templates", error)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (newsletterType === "text") {
+      setPreviewHtml(sanitizeClientHtml(content))
+    } else {
+      setPreviewHtml("")
+    }
+  }, [content, newsletterType])
+
   const addEmoji = (emoji: string) => {
     setSubject(prev => prev + emoji)
     setShowEmojiPicker(false)
   }
 
   const addEmojiToContent = (emoji: string) => {
-    setContent(prev => prev + emoji)
+    if (newsletterType !== "text") return
+    if (contentEditorRef.current) {
+      contentEditorRef.current.focus()
+      document.execCommand("insertText", false, emoji)
+      const html = sanitizeClientHtml(contentEditorRef.current.innerHTML)
+      setContentHtml(html)
+    } else {
+      setContentHtml(prev => prev + emoji)
+    }
+  }
+
+  const insertTokenIntoContent = (token: string) => {
+    if (newsletterType !== "text") {
+      setSubject((prev) => prev + token)
+      return
+    }
+    if (contentEditorRef.current) {
+      contentEditorRef.current.focus()
+      document.execCommand("insertText", false, token)
+      const html = sanitizeClientHtml(contentEditorRef.current.innerHTML)
+      setContentHtml(html)
+    } else {
+      setContentHtml((prev) => prev + token)
+    }
+  }
+
+  const handleContentInput = () => {
+    if (!contentEditorRef.current) return
+    const html = sanitizeClientHtml(contentEditorRef.current.innerHTML)
+    setContentHtml(html)
+  }
+
+  const runCommand = (command: string, value?: string) => {
+    if (!contentEditorRef.current) return
+    contentEditorRef.current.focus()
+    document.execCommand(command, false, value)
+    handleContentInput()
+  }
+
+  const addLinkToContent = () => {
+    const url = prompt("Add link URL")
+    if (url) {
+      runCommand("createLink", url)
+    }
+  }
+
+  const saveTemplateToLocal = () => {
+    if (!templateName.trim()) {
+      setSendStatus({ type: "error", message: "Template name is required" })
+      return
+    }
+    if (newsletterType === "text" && !stripHtml(content)) {
+      setSendStatus({ type: "error", message: "Add content before saving template" })
+      return
+    }
+    const newTemplate: NewsletterTemplate = {
+      name: templateName.trim(),
+      subject,
+      contentHtml: sanitizeClientHtml(content),
+      type: newsletterType,
+      posterText,
+      buttonText,
+      buttonLink,
+      showButton,
+    }
+    const updated = [
+      ...templates.filter(t => t.name !== newTemplate.name),
+      newTemplate,
+    ]
+    setTemplates(updated)
+    localStorage.setItem("newsletterTemplates", JSON.stringify(updated))
+    setSendStatus({ type: "success", message: "Template saved locally" })
+  }
+
+  const applyTemplate = (name: string) => {
+    const tpl = templates.find((t) => t.name === name)
+    if (!tpl) return
+    setSubject(tpl.subject)
+    setPosterText(tpl.posterText || "")
+    setButtonText(tpl.buttonText || "LISTEN NOW")
+    setButtonLink(tpl.buttonLink || "https://jonspirit.com/music")
+    setShowButton(tpl.showButton ?? true)
+    setContentHtml(tpl.contentHtml || "")
+    setNewsletterType(tpl.type)
+    if (contentEditorRef.current) {
+      contentEditorRef.current.innerHTML = tpl.contentHtml || ""
+    }
+    setSendStatus({ type: "success", message: `Applied template "${tpl.name}"` })
   }
 
   const sendNewsletter = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (newsletterType === "poster" && (!subject.trim() || !posterUrl)) {
       setSendStatus({ type: "error", message: "Subject and poster image are required" })
       return
     }
-    if (newsletterType === "text" && (!subject.trim() || !content.trim())) {
+    if (newsletterType === "text" && (!subject.trim() || !stripHtml(content))) {
       setSendStatus({ type: "error", message: "Subject and content are required" })
       return
     }
+    if (sendMode === "schedule") {
+      const scheduleDate = scheduledAt ? new Date(scheduledAt) : null
+      if (!scheduleDate || isNaN(scheduleDate.getTime()) || scheduleDate.getTime() <= Date.now()) {
+        setSendStatus({ type: "error", message: "Choose a future date/time to schedule" })
+        return
+      }
+    }
 
-    if (!confirm(`Send newsletter "${subject}" to all ${subscriberCount} subscribers?`)) {
+    if (!confirm(`Send newsletter "${subject}" ${sendMode === "schedule" ? "at the scheduled time" : "now"} to all ${subscriberCount || 0} subscribers?`)) {
       return
     }
 
@@ -381,9 +577,11 @@ export default function AdminDashboard() {
       type: newsletterType,
       posterUrl: newsletterType === "poster" ? posterUrl : undefined,
       posterText: newsletterType === "poster" && posterText.trim() ? posterText : undefined,
-      content: newsletterType === "text" ? content : undefined,
+      htmlContent: newsletterType === "text" ? sanitizeClientHtml(content) : undefined,
       buttonText: showButton ? buttonText : undefined,
       buttonLink: showButton ? buttonLink : undefined,
+      sendMode,
+      scheduledAt: sendMode === "schedule" ? scheduledAt : undefined,
     }
 
     try {
@@ -397,16 +595,20 @@ export default function AdminDashboard() {
       try {
         data = await response.json()
       } catch {
-        data = { message: "Newsletter scheduled!", error: "Could not parse response" }
+        data = { message: "Newsletter queued", error: "Could not parse response" }
       }
 
       if (response.ok) {
-        setSendStatus({ type: "success", message: data.message || "Newsletter sent!" })
+        setSendStatus({ type: "success", message: data.message || (sendMode === "schedule" ? "Newsletter scheduled!" : "Newsletter sent!") })
         setSubject("")
-        setContent("")
+        setContentHtml("")
         setPosterText("")
         setPosterUrl("")
+        setScheduledAt("")
+        setSendMode("now")
         if (fileInputRef.current) fileInputRef.current.value = ""
+        if (contentEditorRef.current) contentEditorRef.current.innerHTML = ""
+        fetchNewsletterStats()
       } else {
         setSendStatus({ type: "error", message: data.error || "Failed to send" })
       }
@@ -414,7 +616,7 @@ export default function AdminDashboard() {
       console.error("Newsletter send error:", err)
       setSendStatus({ type: "error", message: "Network error - please try again" })
     }
-    
+
     setSending(false)
   }
 
@@ -1353,31 +1555,72 @@ export default function AdminDashboard() {
 
               {/* Text Content - Only show for text type */}
               {newsletterType === "text" && (
-                <div>
-                  <label className="block text-sm font-medium mb-2">Content</label>
-                  <div className="space-y-2">
-                    <div className="flex gap-1 flex-wrap pb-2">
-                      {EMOJI_LIST.slice(0, 8).map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => addEmojiToContent(emoji)}
-                          className="text-lg hover:bg-muted p-1 rounded"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <label className="block text-sm font-medium">Content</label>
+                    <div className="flex gap-2 flex-wrap text-xs text-muted-foreground">
+                      <span>Tokens:</span>
+                      <button type="button" onClick={() => insertTokenIntoContent("{{name}}")} className="px-2 py-1 rounded bg-muted hover:bg-muted/80">
+                        {"{{name}}"}
+                      </button>
+                      <button type="button" onClick={() => insertTokenIntoContent("{{email}}")} className="px-2 py-1 rounded bg-muted hover:bg-muted/80">
+                        {"{{email}}"}
+                      </button>
+                      <button type="button" onClick={() => insertTokenIntoContent("{{unsubscribe}}")} className="px-2 py-1 rounded bg-muted hover:bg-muted/80">
+                        {"{{unsubscribe}}"}
+                      </button>
                     </div>
-                    <textarea
-                      placeholder="Write your newsletter content here..."
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      required={newsletterType === "text"}
-                      disabled={sending}
-                      rows={8}
-                      className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y"
-                    />
                   </div>
+
+                  <div className="flex gap-1 flex-wrap pb-1">
+                    {EMOJI_LIST.slice(0, 8).map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => addEmojiToContent(emoji)}
+                        className="text-lg hover:bg-muted p-1 rounded"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("bold")}>
+                      Bold
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("italic")}>
+                      Italic
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("underline")}>
+                      Underline
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("insertUnorderedList")}>
+                      Bullet List
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("insertOrderedList")}>
+                      Numbered List
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => runCommand("formatBlock", "h3")}>
+                      Heading
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={addLinkToContent}>
+                      Add Link
+                    </Button>
+                  </div>
+
+                  <div
+                    ref={contentEditorRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={handleContentInput}
+                    className="w-full min-h-[220px] bg-input border border-border rounded-md px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 prose prose-invert max-w-none"
+                    data-placeholder="Write your newsletter content here..."
+                    dangerouslySetInnerHTML={{ __html: content || "" }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Supports bold, italic, headings, lists, links, and personalization tokens.
+                  </p>
                 </div>
               )}
 
@@ -1424,6 +1667,109 @@ export default function AdminDashboard() {
                 )}
               </div>
 
+              {/* Templates + Scheduling */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="border border-border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">Templates</h4>
+                    <Button variant="ghost" size="sm" onClick={() => setShowPreview((prev) => !prev)}>
+                      {showPreview ? "Hide Preview" : "Show Preview"}
+                    </Button>
+                  </div>
+                  <Input
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    placeholder="Template name"
+                    className="bg-input border-border"
+                  />
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={saveTemplateToLocal} className="flex-1">
+                      Save Template
+                    </Button>
+                    <select
+                      className="flex-1 bg-input border border-border rounded-md px-3 py-2 text-sm"
+                      defaultValue=""
+                      onChange={(e) => {
+                        if (e.target.value) applyTemplate(e.target.value)
+                        e.target.value = ""
+                      }}
+                    >
+                      <option value="">Load template...</option>
+                      {templates.map((tpl) => (
+                        <option key={tpl.name} value={tpl.name}>
+                          {tpl.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Templates are saved locally in your browser. They are not shared with the backend.
+                  </p>
+                </div>
+
+                <div className="border border-border rounded-lg p-4 space-y-3">
+                  <h4 className="font-semibold text-sm">Send timing</h4>
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="sendMode"
+                        value="now"
+                        checked={sendMode === "now"}
+                        onChange={() => setSendMode("now")}
+                      />
+                      Send now
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="sendMode"
+                        value="schedule"
+                        checked={sendMode === "schedule"}
+                        onChange={() => setSendMode("schedule")}
+                      />
+                      Schedule
+                    </label>
+                    {sendMode === "schedule" && (
+                      <input
+                        type="datetime-local"
+                        value={scheduledAt}
+                        onChange={(e) => setScheduledAt(e.target.value)}
+                        className="bg-input border border-border rounded-md px-3 py-2 text-sm"
+                      />
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      If scheduling support is unavailable on the server, the email will send immediately.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview */}
+              {showPreview && (
+                <div className="border border-border rounded-lg p-4 space-y-3 bg-card/50">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">Live preview</h4>
+                    <span className="text-xs text-muted-foreground">Subject: {subject || "—"}</span>
+                  </div>
+                  {newsletterType === "text" ? (
+                    <div
+                      className="prose prose-invert max-w-none bg-input/40 border border-border rounded-md p-4 text-foreground"
+                      dangerouslySetInnerHTML={{ __html: previewHtml || "<p class='text-muted-foreground'>Content preview...</p>" }}
+                    />
+                  ) : (
+                    <div className="space-y-2">
+                      {posterUrl ? (
+                        <img src={posterUrl} alt="Poster preview" className="max-w-full rounded-lg border border-border" />
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Upload a poster to preview</p>
+                      )}
+                      {posterText && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{posterText}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {sendStatus && (
                 <div className={`p-4 rounded-lg ${sendStatus.type === "error" ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
                   {sendStatus.message}
@@ -1433,13 +1779,15 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-4 pt-2">
                 <Button
                   type="submit"
-                  disabled={sending || uploading || !subject.trim() || (newsletterType === "poster" ? !posterUrl : !content.trim())}
+                  disabled={sending || uploading || !subject.trim() || (newsletterType === "poster" ? !posterUrl : !stripHtml(content))}
                   className="bg-primary hover:bg-primary/90"
                 >
                   {sending ? "Sending..." : "Send Newsletter"}
                 </Button>
                 <span className="text-sm text-muted-foreground">
-                  Sends immediately to all active subscribers
+                  {sendMode === "schedule"
+                    ? "Schedules delivery; if scheduling fails it will send now."
+                    : "Sends immediately to all active subscribers."}
                 </span>
               </div>
             </form>
@@ -2024,6 +2372,56 @@ export default function AdminDashboard() {
                 </div>
                 <p className="text-3xl font-bold">{albums.length}</p>
               </div>
+            </div>
+
+            {/* Newsletter performance */}
+            <div className="bg-card border border-border rounded-lg p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Newsletter performance</h3>
+                  <p className="text-muted-foreground text-sm">Opens and clicks for recent sends</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchNewsletterStats} disabled={loadingNewsletterStats}>
+                  {loadingNewsletterStats ? "Loading..." : "Refresh"}
+                </Button>
+              </div>
+
+              {loadingNewsletterStats ? (
+                <div className="text-muted-foreground text-sm">Loading newsletter stats...</div>
+              ) : newsletterStats.length === 0 ? (
+                <div className="text-muted-foreground text-sm">No newsletter sends recorded yet.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-muted-foreground">
+                        <th className="py-2 pr-4 font-medium">Subject</th>
+                        <th className="py-2 pr-4 font-medium">Status</th>
+                        <th className="py-2 pr-4 font-medium">Sent/Scheduled</th>
+                        <th className="py-2 pr-4 font-medium">Opens</th>
+                        <th className="py-2 pr-4 font-medium">Clicks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {newsletterStats.map((stat) => (
+                        <tr key={stat.id} className="border-b border-border/50">
+                          <td className="py-2 pr-4 font-medium truncate max-w-[280px]">{stat.subject}</td>
+                          <td className="py-2 pr-4 capitalize">{stat.status}</td>
+                          <td className="py-2 pr-4 text-muted-foreground">
+                            {stat.sent_at
+                              ? new Date(stat.sent_at).toLocaleString()
+                              : stat.scheduled_at
+                                ? `Scheduled ${new Date(stat.scheduled_at).toLocaleString()}`
+                                : "—"}
+                          </td>
+                          <td className="py-2 pr-4">{stat.open_count ?? 0}</td>
+                          <td className="py-2 pr-4">{stat.click_count ?? 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* External Analytics Links */}

@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { sql } from "@vercel/postgres"
 
-type SendMode = "now" | "schedule"
-
 const STATUS_SCHEDULED = "scheduled"
 const STATUS_SENDING = "sending"
 const STATUS_SENT = "sent"
@@ -84,9 +82,9 @@ const withTracking = (html: string, baseUrl: string, sendId: number) =>
 const generatePosterEmailHTML = (
   subject: string,
   posterUrl: string,
-  posterText: string | undefined,
-  buttonText: string | undefined,
-  buttonLink: string | undefined,
+  posterText: string | null,
+  buttonText: string | null,
+  buttonLink: string | null,
   baseUrl: string,
   sendId: number
 ) => {
@@ -204,8 +202,8 @@ ${buttonHTML}
 const generateTextEmailHTML = (
   subject: string,
   htmlContent: string,
-  buttonText: string | undefined,
-  buttonLink: string | undefined,
+  buttonText: string | null,
+  buttonLink: string | null,
   baseUrl: string,
   sendId: number
 ) => {
@@ -440,11 +438,14 @@ const sendWithMailerLite = async (subject: string, html: string, API_KEY: string
 }
 
 export async function POST(request: NextRequest) {
-  // Check authentication
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
+  const processSecret = request.headers.get("x-process-secret")
 
-  if (!session?.value) {
+  const allowed =
+    !!session?.value || (process.env.NEWSLETTER_PROCESS_SECRET && processSecret === process.env.NEWSLETTER_PROCESS_SECRET)
+
+  if (!allowed) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -457,101 +458,57 @@ export async function POST(request: NextRequest) {
   await ensureTables()
 
   try {
-    const body = await request.json()
-    const { subject, type, posterUrl, posterText, htmlContent, buttonText, buttonLink, sendMode = "now", scheduledAt } = body as {
-      subject: string
-      type: "poster" | "text"
-      posterUrl?: string
-      posterText?: string
-      htmlContent?: string
-      buttonText?: string
-      buttonLink?: string
-      sendMode?: SendMode
-      scheduledAt?: string
-    }
-
-    console.log("Newsletter payload received:", {
-      subject,
-      type,
-      posterUrl: posterUrl?.substring(0, 50),
-      posterText,
-      buttonText,
-      buttonLink,
-      sendMode,
-      scheduledAt,
-    })
-
-    if (!subject) {
-      return NextResponse.json({ error: "Subject is required" }, { status: 400 })
-    }
-
-    if (type === "poster" && !posterUrl) {
-      return NextResponse.json({ error: "Poster image is required" }, { status: 400 })
-    }
-
-    if (type === "text" && !htmlContent) {
-      return NextResponse.json({ error: "Content is required" }, { status: 400 })
-    }
-
     const baseUrl = getBaseUrl(request)
-    const sanitizedContent = sanitizeHtml(htmlContent || "")
 
-    const scheduleDate = sendMode === "schedule" && scheduledAt ? new Date(scheduledAt) : null
-    const isScheduled = scheduleDate ? scheduleDate.getTime() > Date.now() : false
-
-    const insertResult = await sql`
-      INSERT INTO newsletter_sends (subject, type, body_html, poster_url, poster_text, button_text, button_link, status, scheduled_at)
-      VALUES (
-        ${subject},
-        ${type},
-        ${type === "text" ? sanitizedContent : null},
-        ${posterUrl || null},
-        ${posterText || null},
-        ${buttonText || null},
-        ${buttonLink || null},
-        ${isScheduled ? STATUS_SCHEDULED : STATUS_SENDING},
-        ${isScheduled && scheduleDate ? scheduleDate.toISOString() : null}
-      )
-      RETURNING id
+    const due = await sql`
+      SELECT * FROM newsletter_sends
+      WHERE status = ${STATUS_SCHEDULED}
+        AND scheduled_at IS NOT NULL
+        AND scheduled_at <= NOW()
+      ORDER BY scheduled_at ASC
+      LIMIT 10
     `
 
-    const sendId = insertResult.rows[0]?.id as number
-
-    if (isScheduled) {
-      return NextResponse.json({ success: true, message: "Newsletter scheduled", sendId })
+    if (due.rows.length === 0) {
+      return NextResponse.json({ success: true, processed: 0 })
     }
 
-    const emailHTML =
-      type === "poster"
-        ? generatePosterEmailHTML(subject, posterUrl!, posterText, buttonText, buttonLink, baseUrl, sendId)
-        : generateTextEmailHTML(subject, sanitizedContent, buttonText, buttonLink, baseUrl, sendId)
+    let sent = 0
+    let failed = 0
 
-    const sendResult = await sendWithMailerLite(subject, emailHTML, API_KEY)
+    for (const row of due.rows) {
+      const sendId = row.id as number
+      await sql`UPDATE newsletter_sends SET status = ${STATUS_SENDING}, error = NULL WHERE id = ${sendId}`
 
-    if (!sendResult.ok) {
+      const emailHTML =
+        row.type === "poster"
+          ? generatePosterEmailHTML(row.subject, row.poster_url, row.poster_text, row.button_text, row.button_link, baseUrl, sendId)
+          : generateTextEmailHTML(row.subject, row.body_html, row.button_text, row.button_link, baseUrl, sendId)
+
+      const sendResult = await sendWithMailerLite(row.subject, emailHTML, API_KEY)
+
+      if (!sendResult.ok) {
+        failed += 1
+        await sql`
+          UPDATE newsletter_sends
+          SET status = ${STATUS_ERROR}, error = ${sendResult.error || "Send failed"}
+          WHERE id = ${sendId}
+        `
+        continue
+      }
+
+      sent += 1
       await sql`
         UPDATE newsletter_sends
-        SET status = ${STATUS_ERROR}, error = ${sendResult.error || "Send failed"}
+        SET status = ${STATUS_SENT}, sent_at = NOW(), error = NULL
         WHERE id = ${sendId}
       `
-
-      return NextResponse.json({ error: sendResult.error || "Failed to send newsletter" }, { status: 400 })
     }
 
-    await sql`
-      UPDATE newsletter_sends
-      SET status = ${STATUS_SENT}, sent_at = NOW(), error = NULL
-      WHERE id = ${sendId}
-    `
-
-    return NextResponse.json({
-      success: true,
-      message: "Newsletter sent successfully!",
-      campaignId: sendResult.campaignId,
-      sendId,
-    })
+    return NextResponse.json({ success: true, processed: due.rows.length, sent, failed })
   } catch (error) {
-    console.error("Newsletter send error:", error)
-    return NextResponse.json({ error: "Failed to send newsletter" }, { status: 500 })
+    console.error("Process scheduled newsletters error:", error)
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 })
   }
 }
+
