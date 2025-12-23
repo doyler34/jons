@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink } from "lucide-react"
+import { upload } from "@vercel/blob/client"
 
 interface Subscriber {
   id: string
@@ -233,26 +234,13 @@ export default function AdminDashboard() {
     setMusicStatus(null)
 
     try {
-      // Skip client-side validation - let server handle it
-      const formData = new FormData()
-      formData.append("file", file)
-
-      const uploadRes = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: formData,
+      // Upload directly to Vercel Blob (client-side)
+      const blob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/admin/upload/token',
       })
-
-      if (!uploadRes.ok) {
-        const contentType = uploadRes.headers.get("content-type")
-        if (!contentType?.includes("application/json")) {
-          const text = await uploadRes.text()
-          throw new Error("Upload failed: " + text.substring(0, 200))
-        }
-        const errorData = await uploadRes.json()
-        throw new Error(errorData.error || "Upload failed")
-      }
-
-      const { url } = await uploadRes.json()
+      
+      const url = blob.url
 
       const saveRes = await fetch("/api/songs/overrides", {
         method: "POST",
@@ -373,29 +361,14 @@ export default function AdminDashboard() {
     setSendStatus(null)
 
     try {
-      // Skip client-side validation - let server handle it
-      const formData = new FormData()
-      formData.append("file", file)
-
-      const response = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: formData,
+      // Upload directly to Vercel Blob (client-side)
+      const blob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/admin/upload/token',
       })
-
-      const contentType = response.headers.get("content-type")
-      if (!contentType?.includes("application/json")) {
-        const text = await response.text()
-        throw new Error("Upload failed: " + text.substring(0, 200))
-      }
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setPosterUrl(data.url)
-        setSendStatus({ type: "success", message: "Image uploaded!" })
-      } else {
-        setSendStatus({ type: "error", message: data.error || "Upload failed" })
-      }
+      
+      setPosterUrl(blob.url)
+      setSendStatus({ type: "success", message: "Image uploaded!" })
     } catch (error) {
       setSendStatus({ type: "error", message: error instanceof Error ? error.message : "Upload failed" })
     } finally {
@@ -759,41 +732,24 @@ export default function AdminDashboard() {
     try {
       // Skip client-side validation - let server handle it
       
-      // Upload audio file
-      const audioFormData = new FormData()
-      audioFormData.append("file", newSong.audioFile)
-      const audioRes = await fetch("/api/admin/upload", { method: "POST", body: audioFormData })
-      
-      if (!audioRes.ok) {
-        const contentType = audioRes.headers.get("content-type")
-        if (!contentType?.includes("application/json")) {
-          const text = await audioRes.text()
-          throw new Error("Failed to upload audio: " + text.substring(0, 200))
-        }
-        const errorData = await audioRes.json()
-        throw new Error(errorData.error || "Failed to upload audio")
-      }
-      const { url: audioUrl } = await audioRes.json()
+      // Upload audio file directly to Vercel Blob (client-side)
+      const audioBlob = await upload(newSong.audioFile.name, newSong.audioFile, {
+        access: 'public',
+        handleUploadUrl: '/api/admin/upload/token',
+      })
+      const audioUrl = audioBlob.url
 
       // Upload cover if provided
       let coverUrl = null
       if (newSong.coverFile) {
-        const coverFormData = new FormData()
-        coverFormData.append("file", newSong.coverFile)
-        const coverRes = await fetch("/api/admin/upload", { method: "POST", body: coverFormData })
-        
-        if (coverRes.ok) {
-          const { url } = await coverRes.json()
-          coverUrl = url
-        } else {
-          const contentType = coverRes.headers.get("content-type")
-          if (contentType?.includes("application/json")) {
-            const errorData = await coverRes.json()
-            console.warn("Cover upload failed:", errorData.error)
-          } else {
-            const text = await coverRes.text()
-            console.warn("Cover upload failed:", text.substring(0, 100))
-          }
+        try {
+          const coverBlob = await upload(newSong.coverFile.name, newSong.coverFile, {
+            access: 'public',
+            handleUploadUrl: '/api/admin/upload/token',
+          })
+          coverUrl = coverBlob.url
+        } catch (error) {
+          console.warn("Cover upload failed:", error)
           // Don't throw error for cover - it's optional
         }
       }
