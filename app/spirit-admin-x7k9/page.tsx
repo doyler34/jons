@@ -1269,6 +1269,31 @@ export default function AdminDashboard() {
                           Manual Upload
                         </span>
                       </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => {
+                            const audio = new Audio(song.audio_url)
+                            audio.play()
+                          }}
+                          className="p-2 text-green-400 hover:bg-green-400/10 rounded"
+                          title="Play audio"
+                        >
+                          <Music size={14} />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (confirm(`Delete "${song.title}"?`)) {
+                              await fetch(`/api/songs/manual?id=${song.id}`, { method: "DELETE" })
+                              setManualSongs(prev => prev.filter(s => s.id !== song.id))
+                              setMusicStatus({ type: "success", message: "Song deleted" })
+                            }
+                          }}
+                          className="p-2 text-red-400 hover:bg-red-400/10 rounded"
+                          title="Delete song"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
                   ))}
 
@@ -1405,13 +1430,25 @@ export default function AdminDashboard() {
                           </div>
 
                           {hasAudio && (
-                            <button
-                              onClick={() => removeOverride(track.id, "audio")}
-                              className="p-2 text-red-400 hover:bg-red-400/10 rounded"
-                              title="Remove audio"
-                            >
-                              <X size={14} />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => {
+                                  const audio = new Audio(override.audio_url!)
+                                  audio.play()
+                                }}
+                                className="p-2 text-green-400 hover:bg-green-400/10 rounded"
+                                title="Play audio"
+                              >
+                                <Music size={14} />
+                              </button>
+                              <button
+                                onClick={() => removeOverride(track.id, "audio")}
+                                className="p-2 text-red-400 hover:bg-red-400/10 rounded"
+                                title="Remove audio"
+                              >
+                                <X size={14} />
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
