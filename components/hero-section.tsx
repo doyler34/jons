@@ -1,8 +1,9 @@
 "use client"
 
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 interface HeroSectionProps {
   onPlay?: () => void
@@ -14,28 +15,26 @@ export default function HeroSection({ onPlay, artistImage, trackName = "LATEST T
   const backgroundImage = "/jon-spirit-banner.jpg"
   const [imageLoaded, setImageLoaded] = useState(false)
 
-  useEffect(() => {
-    const img = new Image()
-    img.src = backgroundImage
-    img.onload = () => {
-      setImageLoaded(true)
-    }
-    img.onerror = () => {
-      // If image fails to load, still show the section
-      setImageLoaded(true)
-    }
-  }, [backgroundImage])
-
   return (
     <section
-      className={`relative min-h-[60vh] md:min-h-[calc(100vh-64px)] w-full flex items-center justify-center overflow-hidden bg-cover bg-center transition-opacity duration-1000 ${
+      className={`relative min-h-[60vh] md:min-h-[calc(100vh-64px)] w-full flex items-center justify-center overflow-hidden transition-opacity duration-1000 ${
         imageLoaded ? "opacity-100" : "opacity-0"
       }`}
-      style={{
-        backgroundImage: `linear-gradient(rgba(10, 10, 10, 0.75), rgba(10, 10, 10, 0.75)), url('${backgroundImage}')`,
-      }}
     >
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Background Image with Next.js Image for better quality */}
+      <Image
+        src={backgroundImage}
+        alt="Jon Spirit Banner"
+        fill
+        priority
+        quality={95}
+        className="object-cover"
+        onLoad={() => setImageLoaded(true)}
+      />
+      
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-black/40 z-[1]" />
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-[2]">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-primary/5 rounded-full blur-3xl" />
       </div>
 
