@@ -1,4 +1,5 @@
 "use client"
+import Image from "next/image"
 import Navigation from "@/components/navigation"
 import PlayerBar from "@/components/player-bar"
 import NewsletterForm from "@/components/newsletter-form"
@@ -193,10 +194,13 @@ export default function MusicPage() {
           {/* Album Header */}
           <div className="flex flex-col md:flex-row gap-6 md:gap-8 mb-8">
             <div className="w-48 h-48 md:w-64 md:h-64 flex-shrink-0 mx-auto md:mx-0">
-              <img
+              <Image
                 src={selectedAlbum.images[0]?.url || "/placeholder.svg"}
                 alt={selectedAlbum.name}
+                width={256}
+                height={256}
                 className="w-full h-full object-cover rounded-lg shadow-2xl"
+                priority
               />
             </div>
             <div className="flex flex-col justify-end text-center md:text-left">
@@ -329,9 +333,11 @@ export default function MusicPage() {
                     </>
                   )}
                 </span>
-                <img
+                <Image
                   src={track.image}
                   alt={track.title}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 rounded object-cover"
                 />
                 <div className="flex-1 min-w-0">
@@ -363,9 +369,11 @@ export default function MusicPage() {
                 className="group cursor-pointer"
               >
                 <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-muted">
-                  <img
+                  <Image
                     src={album.images[0]?.url || "/placeholder.svg"}
                     alt={album.name}
+                    width={300}
+                    height={300}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
