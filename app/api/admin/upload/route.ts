@@ -27,20 +27,36 @@ export async function POST(request: NextRequest) {
     const isImage = file.type.startsWith("image/")
     const isAudio = file.type.startsWith("audio/")
     
-    if (!isImage && !isAudio) {
+    // Also check by file extension if MIME type is missing
+    const fileName = file.name.toLowerCase()
+    const audioExtensions = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.wma']
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
+    const isAudioByExtension = audioExtensions.some(ext => fileName.endsWith(ext))
+    const isImageByExtension = imageExtensions.some(ext => fileName.endsWith(ext))
+    
+    const finalIsAudio = isAudio || isAudioByExtension
+    const finalIsImage = isImage || isImageByExtension
+    
+    console.log(`Upload: ${file.name}, size: ${file.size} bytes (${(file.size / 1024 / 1024).toFixed(2)} MB), type: ${file.type}, isAudio: ${finalIsAudio}, isImage: ${finalIsImage}`)
+    
+    if (!finalIsImage && !finalIsAudio) {
       return NextResponse.json({ error: "File must be an image or audio file" }, { status: 400 })
     }
 
     // Validate file size (max 4MB for images, max 50MB for audio)
-    const maxSize = isAudio ? 50 * 1024 * 1024 : 4 * 1024 * 1024
+    const maxSize = finalIsAudio ? 50 * 1024 * 1024 : 4 * 1024 * 1024
     if (file.size > maxSize) {
-      return NextResponse.json({ error: `File too large (max ${isAudio ? "50MB" : "4MB"})` }, { status: 400 })
+      const maxSizeMB = finalIsAudio ? "50MB" : "4MB"
+      const actualSizeMB = (file.size / 1024 / 1024).toFixed(2)
+      return NextResponse.json({ 
+        error: `File too large: ${actualSizeMB}MB exceeds max ${maxSizeMB} for ${finalIsAudio ? 'audio' : 'image'} files` 
+      }, { status: 400 })
     }
 
     // Generate unique filename
     const timestamp = Date.now()
-    const extension = file.name.split(".").pop() || (isAudio ? "mp3" : "jpg")
-    const prefix = isAudio ? "song" : "newsletter"
+    const extension = file.name.split(".").pop() || (finalIsAudio ? "mp3" : "jpg")
+    const prefix = finalIsAudio ? "song" : "newsletter"
     const filename = `${prefix}-${timestamp}.${extension}`
 
     // Upload to Vercel Blob
