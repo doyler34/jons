@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { put } from "@vercel/blob"
 import { cookies } from "next/headers"
 
-// Configure route to handle larger payloads
+// Configure route to use Edge runtime for larger payloads
+export const runtime = 'edge'
 export const maxDuration = 60
-export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   // Check authentication
