@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "@vercel/analytics"],
   },
+  // Target modern browsers to reduce polyfills
+  transpilePackages: [],
 };
 
 export default nextConfig;
