@@ -233,41 +233,7 @@ export default function AdminDashboard() {
     setMusicStatus(null)
 
     try {
-      // Log upload attempt for debugging
-      console.log('Upload attempt:', {
-        filename: file.name,
-        size: file.size,
-        sizeInMB: (file.size / 1024 / 1024).toFixed(2),
-        type: file.type,
-        uploadType: type
-      })
-
-      // Validate file type with fallback to extension
-      const isAudioMime = file.type.startsWith("audio/")
-      const isImageMime = file.type.startsWith("image/")
-      const fileName = file.name.toLowerCase()
-      const audioExtensions = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.wma']
-      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
-      const isAudioExt = audioExtensions.some(ext => fileName.endsWith(ext))
-      const isImageExt = imageExtensions.some(ext => fileName.endsWith(ext))
-      const isAudio = isAudioMime || isAudioExt
-      const isImage = isImageMime || isImageExt
-      
-      if (type === "audio" && !isAudio) {
-        throw new Error("Please select an audio file")
-      }
-      if (type === "cover" && !isImage) {
-        throw new Error("Please select an image file")
-      }
-
-      // Validate file size
-      const maxSize = type === "audio" ? 50 * 1024 * 1024 : 4 * 1024 * 1024
-      if (file.size > maxSize) {
-        const actualMB = (file.size / 1024 / 1024).toFixed(2)
-        const maxMB = type === "audio" ? "50" : "4"
-        throw new Error(`File too large: ${actualMB}MB exceeds ${maxMB}MB limit for ${type}`)
-      }
-
+      // Skip client-side validation - let server handle it
       const formData = new FormData()
       formData.append("file", file)
 
@@ -409,32 +375,7 @@ export default function AdminDashboard() {
     setSendStatus(null)
 
     try {
-      // Log upload attempt for debugging
-      console.log('Image upload attempt:', {
-        filename: file.name,
-        size: file.size,
-        sizeInMB: (file.size / 1024 / 1024).toFixed(2),
-        type: file.type
-      })
-
-      // Validate file type with fallback to extension
-      const isImageMime = file.type.startsWith("image/")
-      const fileName = file.name.toLowerCase()
-      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
-      const isImageExt = imageExtensions.some(ext => fileName.endsWith(ext))
-      const isImage = isImageMime || isImageExt
-      
-      if (!isImage) {
-        throw new Error("Please select an image file")
-      }
-
-      // Validate file size (max 4MB for newsletter images)
-      const maxSize = 4 * 1024 * 1024
-      if (file.size > maxSize) {
-        const actualMB = (file.size / 1024 / 1024).toFixed(2)
-        throw new Error(`Image too large: ${actualMB}MB exceeds 4MB limit`)
-      }
-
+      // Skip client-side validation - let server handle it
       const formData = new FormData()
       formData.append("file", file)
 
@@ -820,49 +761,8 @@ export default function AdminDashboard() {
     setMusicStatus(null)
 
     try {
-      // Log upload attempt for debugging
-      console.log('New song upload attempt:', {
-        audioFile: newSong.audioFile.name,
-        audioSize: newSong.audioFile.size,
-        audioSizeInMB: (newSong.audioFile.size / 1024 / 1024).toFixed(2),
-        audioType: newSong.audioFile.type,
-        hasCover: !!newSong.coverFile
-      })
-
-      // Validate audio file with fallback to extension
-      const isAudioMime = newSong.audioFile.type.startsWith("audio/")
-      const audioFileName = newSong.audioFile.name.toLowerCase()
-      const audioExtensions = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.wma']
-      const isAudioExt = audioExtensions.some(ext => audioFileName.endsWith(ext))
-      const isAudio = isAudioMime || isAudioExt
+      // Skip client-side validation - let server handle it
       
-      if (!isAudio) {
-        throw new Error("Please select a valid audio file")
-      }
-      const audioMaxSize = 50 * 1024 * 1024
-      if (newSong.audioFile.size > audioMaxSize) {
-        const actualMB = (newSong.audioFile.size / 1024 / 1024).toFixed(2)
-        throw new Error(`Audio file too large: ${actualMB}MB exceeds 50MB limit`)
-      }
-
-      // Validate cover file if provided
-      if (newSong.coverFile) {
-        const isImageMime = newSong.coverFile.type.startsWith("image/")
-        const coverFileName = newSong.coverFile.name.toLowerCase()
-        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
-        const isImageExt = imageExtensions.some(ext => coverFileName.endsWith(ext))
-        const isImage = isImageMime || isImageExt
-        
-        if (!isImage) {
-          throw new Error("Cover must be an image file")
-        }
-        const coverMaxSize = 4 * 1024 * 1024
-        if (newSong.coverFile.size > coverMaxSize) {
-          const actualMB = (newSong.coverFile.size / 1024 / 1024).toFixed(2)
-          throw new Error(`Cover image too large: ${actualMB}MB exceeds 4MB limit`)
-        }
-      }
-
       // Upload audio file
       const audioFormData = new FormData()
       audioFormData.append("file", newSong.audioFile)
