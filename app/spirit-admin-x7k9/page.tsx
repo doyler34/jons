@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink } from "lucide-react"
+import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink, Inbox, Archive, MailOpen } from "lucide-react"
 
 interface Subscriber {
   id: string
@@ -88,7 +88,18 @@ interface NewsletterStat {
 
 const EMOJI_LIST = ["🔥", "🎵", "🎤", "💿", "🎧", "⚡", "💀", "👻", "🖤", "❤️", "🚨", "📢", "🆕", "✨", "💯", "🙏"]
 
-type TabType = "music" | "newsletter" | "subscribers" | "events" | "settings" | "analytics"
+type TabType = "music" | "newsletter" | "subscribers" | "events" | "settings" | "analytics" | "inbox"
+
+interface ContactMessage {
+  id: number
+  name: string
+  email: string
+  subject: string
+  message: string
+  read: boolean
+  archived: boolean
+  created_at: string
+}
 
 export default function AdminDashboard() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
@@ -118,6 +129,13 @@ export default function AdminDashboard() {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null)
   const [loadingSubscribers, setLoadingSubscribers] = useState(false)
+
+  // Inbox state
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [inboxFilter, setInboxFilter] = useState<"all" | "unread" | "archived">("all")
+  const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null)
+  const [loadingInbox, setLoadingInbox] = useState(false)
 
   // Newsletter state
   const [newsletterType, setNewsletterType] = useState<"poster" | "text">("poster")
@@ -170,6 +188,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     checkAuth()
   }, [])
+
+  useEffect(() => {
+    if (authenticated && activeTab === "inbox") {
+      fetchContactMessages()
+    }
+  }, [activeTab, inboxFilter, authenticated])
 
   const checkAuth = async () => {
     try {
@@ -988,6 +1012,71 @@ export default function AdminDashboard() {
     }
   }
 
+  // Fetch contact messages
+  const fetchContactMessages = async () => {
+    setLoadingInbox(true)
+    try {
+      const res = await fetch(`/api/admin/contact?filter=${inboxFilter}`)
+      if (res.ok) {
+        const data = await res.json()
+        setContactMessages(data.messages || [])
+        setUnreadCount(data.unreadCount || 0)
+      }
+    } catch (error) {
+      console.error("Failed to fetch contact messages:", error)
+    } finally {
+      setLoadingInbox(false)
+    }
+  }
+
+  // Mark message as read
+  const markAsRead = async (id: number) => {
+    try {
+      const res = await fetch(`/api/admin/contact/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ read: true }),
+      })
+      if (res.ok) {
+        setContactMessages(prev => prev.map(msg => msg.id === id ? { ...msg, read: true } : msg))
+        setUnreadCount(prev => Math.max(0, prev - 1))
+      }
+    } catch (error) {
+      console.error("Failed to mark as read:", error)
+    }
+  }
+
+  // Archive message
+  const archiveMessage = async (id: number) => {
+    try {
+      const res = await fetch(`/api/admin/contact/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: true }),
+      })
+      if (res.ok) {
+        setContactMessages(prev => prev.filter(msg => msg.id !== id))
+        setSelectedMessage(null)
+      }
+    } catch (error) {
+      console.error("Failed to archive:", error)
+    }
+  }
+
+  // Delete message
+  const deleteMessage = async (id: number) => {
+    if (!confirm("Delete this message permanently?")) return
+    try {
+      const res = await fetch(`/api/admin/contact/${id}`, { method: "DELETE" })
+      if (res.ok) {
+        setContactMessages(prev => prev.filter(msg => msg.id !== id))
+        setSelectedMessage(null)
+      }
+    } catch (error) {
+      console.error("Failed to delete message:", error)
+    }
+  }
+
   // Get singles (albums with only 1 track)
   const singles = albums.filter(a => a.tracks?.length === 1)
   const multiTrackAlbums = albums.filter(a => (a.tracks?.length || 0) > 1)
@@ -1123,6 +1212,20 @@ export default function AdminDashboard() {
             >
               <BarChart3 size={18} />
               Analytics
+            </button>
+            <button
+              onClick={() => setActiveTab("inbox")}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "inbox"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Inbox size={18} />
+              Inbox
+              {unreadCount > 0 && (
+                <span className="bg-primary text-primary-foreground px-2 py-0.5 rounded text-xs">{unreadCount}</span>
+              )}
             </button>
           </div>
         </div>
@@ -2785,6 +2888,168 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Inbox Tab */}
+        {activeTab === "inbox" && (
+          <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+            {/* Header with filters */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Contact Inbox</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {unreadCount} unread message{unreadCount !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setInboxFilter("all")}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    inboxFilter === "all"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setInboxFilter("unread")}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    inboxFilter === "unread"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  Unread
+                </button>
+                <button
+                  onClick={() => setInboxFilter("archived")}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    inboxFilter === "archived"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  Archived
+                </button>
+              </div>
+            </div>
+
+            {/* Messages list */}
+            {loadingInbox ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="animate-spin" size={32} />
+              </div>
+            ) : contactMessages.length === 0 ? (
+              <div className="bg-card border border-border rounded-lg p-12 text-center">
+                <Inbox size={48} className="mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No messages yet</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Messages list */}
+                <div className="lg:col-span-1 space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
+                  {contactMessages.map((msg) => (
+                    <button
+                      key={msg.id}
+                      onClick={() => {
+                        setSelectedMessage(msg)
+                        if (!msg.read) markAsRead(msg.id)
+                      }}
+                      className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                        selectedMessage?.id === msg.id
+                          ? "bg-primary/10 border-primary"
+                          : msg.read
+                          ? "bg-card border-border hover:bg-muted/50"
+                          : "bg-card border-primary/50 hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <span className={`font-semibold text-sm ${!msg.read ? "text-primary" : ""}`}>
+                          {msg.name}
+                        </span>
+                        {!msg.read && <MailOpen size={14} className="text-primary flex-shrink-0 mt-1" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-2">{msg.email}</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase mb-1">
+                        {msg.subject}
+                      </p>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{msg.message}</p>
+                      <p className="text-xs text-muted-foreground/60 mt-2">
+                        {new Date(msg.created_at).toLocaleDateString()}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Message detail */}
+                <div className="lg:col-span-2">
+                  {selectedMessage ? (
+                    <div className="bg-card border border-border rounded-lg p-6 space-y-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold">{selectedMessage.name}</h3>
+                          <a
+                            href={`mailto:${selectedMessage.email}`}
+                            className="text-sm text-primary hover:underline"
+                          >
+                            {selectedMessage.email}
+                          </a>
+                          <p className="text-xs text-muted-foreground mt-2 uppercase font-medium">
+                            {selectedMessage.subject}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(selectedMessage.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => archiveMessage(selectedMessage.id)}
+                            size="sm"
+                            variant="outline"
+                            title="Archive"
+                          >
+                            <Archive size={16} />
+                          </Button>
+                          <Button
+                            onClick={() => deleteMessage(selectedMessage.id)}
+                            size="sm"
+                            variant="outline"
+                            className="text-red-400 hover:text-red-300"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-border pt-4">
+                        <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Message:</h4>
+                        <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                          {selectedMessage.message}
+                        </p>
+                      </div>
+
+                      <div className="border-t border-border pt-4">
+                        <a
+                          href={`mailto:${selectedMessage.email}?subject=Re: ${selectedMessage.subject}`}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                        >
+                          <Mail size={16} />
+                          Reply via Email
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-card border border-border rounded-lg p-12 text-center">
+                      <Mail size={48} className="mx-auto text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">Select a message to view</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

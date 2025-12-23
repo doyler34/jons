@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { sql } from "@vercel/postgres"
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,17 @@ export async function POST(request: NextRequest) {
         { error: "Name, email, and message are required" },
         { status: 400 }
       )
+    }
+
+    // Save to database
+    try {
+      await sql`
+        INSERT INTO contact_messages (name, email, subject, message)
+        VALUES (${name}, ${email}, ${subject || 'other'}, ${message})
+      `
+    } catch (dbError) {
+      console.error("Failed to save contact message to database:", dbError)
+      // Continue even if database save fails - email is more important
     }
 
     // Email subject mapping
