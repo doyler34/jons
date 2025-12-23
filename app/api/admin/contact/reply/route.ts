@@ -3,15 +3,16 @@ import { sql } from "@vercel/postgres"
 import { cookies } from "next/headers"
 
 export async function POST(request: NextRequest) {
-  const cookieStore = await cookies()
-  const session = cookieStore.get("admin_session")
-
-  if (!session?.value) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
   try {
-    const { to, toName, subject, replyMessage, messageId } = await request.json()
+    const cookieStore = await cookies()
+    const session = cookieStore.get("admin_session")
+
+    if (!session?.value) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { to, toName, subject, replyMessage, messageId } = body
 
     if (!to || !replyMessage || !subject) {
       return NextResponse.json(
@@ -52,8 +53,6 @@ export async function POST(request: NextRequest) {
               <tr>
                 <td align="center" style="padding: 40px 20px;">
                   <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width: 600px; width: 100%;">
-                    
-                    <!-- Header -->
                     <tr>
                       <td align="center" style="padding-bottom: 24px;">
                         <h1 style="margin: 0; font-size: 32px; font-weight: bold; color: #d8d0bf; font-family: Georgia, serif;">
@@ -61,25 +60,17 @@ export async function POST(request: NextRequest) {
                         </h1>
                       </td>
                     </tr>
-                    
-                    <!-- Content Card -->
                     <tr>
                       <td style="background-color: #141414; border-radius: 8px; padding: 32px; border: 1px solid #262626;">
                         <h2 style="margin: 0 0 16px 0; font-size: 24px; color: #f5f5f5;">
                           Hey ${toName}! 👋
                         </h2>
-                        <div style="color: #d4d4d4; line-height: 1.7; white-space: pre-wrap;">
-${replyMessage}
-                        </div>
+                        <div style="color: #d4d4d4; line-height: 1.7; white-space: pre-wrap;">${replyMessage}</div>
                         <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #262626;">
-                          <p style="color: #888; font-size: 14px; margin: 0;">
-                            — Jon Spirit 🖤
-                          </p>
+                          <p style="color: #888; font-size: 14px; margin: 0;">— Jon Spirit 🖤</p>
                         </div>
                       </td>
                     </tr>
-
-                    <!-- Social Links -->
                     <tr>
                       <td align="center" style="padding: 24px 0;">
                         <table role="presentation" cellspacing="0" cellpadding="0">
@@ -100,8 +91,6 @@ ${replyMessage}
                         </table>
                       </td>
                     </tr>
-                    
-                    <!-- Footer -->
                     <tr>
                       <td align="center" style="border-top: 1px solid #262626; padding-top: 24px;">
                         <p style="margin: 0 0 8px 0; color: #555; font-size: 11px;">© 2025 Jon Spirit</p>
@@ -110,7 +99,6 @@ ${replyMessage}
                         </p>
                       </td>
                     </tr>
-
                   </table>
                 </td>
               </tr>
@@ -125,7 +113,7 @@ ${replyMessage}
 
     if (response.ok) {
       // Mark message as replied
-      if (messageId) {
+      if (messageId && typeof messageId === 'number') {
         try {
           await sql`
             UPDATE contact_messages
@@ -134,7 +122,6 @@ ${replyMessage}
           `
         } catch (dbError) {
           console.error("Failed to mark as replied:", dbError)
-          // Don't fail the whole request if this fails
         }
       }
       return NextResponse.json({ success: true, message: "Reply sent successfully!" })
@@ -150,4 +137,3 @@ ${replyMessage}
     )
   }
 }
-
