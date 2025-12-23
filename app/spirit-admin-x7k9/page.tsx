@@ -136,6 +136,10 @@ export default function AdminDashboard() {
   const [inboxFilter, setInboxFilter] = useState<"all" | "unread" | "archived">("all")
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null)
   const [loadingInbox, setLoadingInbox] = useState(false)
+  const [showReplyModal, setShowReplyModal] = useState(false)
+  const [replyMessage, setReplyMessage] = useState("")
+  const [sendingReply, setSendingReply] = useState(false)
+  const [replyStatus, setReplyStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
 
   // Newsletter state
   const [newsletterType, setNewsletterType] = useState<"poster" | "text">("poster")
@@ -1074,6 +1078,45 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error("Failed to delete message:", error)
+    }
+  }
+
+  // Send reply
+  const sendReply = async () => {
+    if (!selectedMessage || !replyMessage.trim()) return
+
+    setSendingReply(true)
+    setReplyStatus(null)
+
+    try {
+      const res = await fetch("/api/admin/contact/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: selectedMessage.email,
+          toName: selectedMessage.name,
+          originalSubject: selectedMessage.subject,
+          replyMessage: replyMessage.trim(),
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        setReplyStatus({ type: "success", message: "Reply sent successfully!" })
+        setReplyMessage("")
+        setTimeout(() => {
+          setShowReplyModal(false)
+          setReplyStatus(null)
+        }, 2000)
+      } else {
+        setReplyStatus({ type: "error", message: data.error || "Failed to send reply" })
+      }
+    } catch (error) {
+      console.error("Send reply error:", error)
+      setReplyStatus({ type: "error", message: "Network error. Please try again." })
+    } finally {
+      setSendingReply(false)
     }
   }
 
@@ -3032,13 +3075,17 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="border-t border-border pt-4">
-                        <a
-                          href={`mailto:${selectedMessage.email}?subject=Re: ${selectedMessage.subject}`}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                        <Button
+                          onClick={() => {
+                            setShowReplyModal(true)
+                            setReplyMessage("")
+                            setReplyStatus(null)
+                          }}
+                          className="inline-flex items-center gap-2"
                         >
                           <Mail size={16} />
                           Reply via Email
-                        </a>
+                        </Button>
                       </div>
                     </div>
                   ) : (
@@ -3047,6 +3094,122 @@ export default function AdminDashboard() {
                       <p className="text-muted-foreground">Select a message to view</p>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Reply Modal */}
+            {showReplyModal && selectedMessage && (
+              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                <div className="bg-card border border-border rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                  <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card">
+                    <div>
+                      <h3 className="text-xl font-bold">Reply to {selectedMessage.name}</h3>
+                      <p className="text-sm text-muted-foreground">{selectedMessage.email}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowReplyModal(false)
+                        setReplyMessage("")
+                        setReplyStatus(null)
+                      }}
+                      className="p-2 hover:bg-muted rounded"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                    {/* Original Message */}
+                    <div className="bg-muted/30 rounded-lg p-4 border border-border">
+                      <p className="text-xs text-muted-foreground mb-2">Original Message:</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {selectedMessage.message}
+                      </p>
+                    </div>
+
+                    {/* Reply Form */}
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Your Reply:</label>
+                      <textarea
+                        value={replyMessage}
+                        onChange={(e) => setReplyMessage(e.target.value)}
+                        placeholder="Type your message here..."
+                        rows={8}
+                        className="w-full bg-background border border-border text-foreground rounded-lg px-4 py-3 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-300 resize-none"
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        This will be sent with your branded email template
+                      </p>
+                    </div>
+
+                    {/* Preview */}
+                    <div className="bg-muted/30 rounded-lg p-4 border border-border">
+                      <p className="text-xs text-muted-foreground mb-3">Email Preview:</p>
+                      <div className="bg-[#0a0a0a] rounded p-4">
+                        <div className="text-center mb-4">
+                          <h4 className="text-2xl font-bold" style={{ color: "#d8d0bf", fontFamily: "Georgia, serif" }}>
+                            JON SPIRIT
+                          </h4>
+                        </div>
+                        <div className="bg-[#141414] rounded p-4 border border-[#262626]">
+                          <p className="text-lg font-semibold mb-2" style={{ color: "#f5f5f5" }}>
+                            Hey {selectedMessage.name}! 👋
+                          </p>
+                          <p className="text-sm whitespace-pre-wrap" style={{ color: "#d4d4d4", lineHeight: "1.7" }}>
+                            {replyMessage || "Your message will appear here..."}
+                          </p>
+                          <div className="mt-4 pt-4 border-t border-[#262626]">
+                            <p className="text-xs" style={{ color: "#888" }}>— Jon Spirit 🖤</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Messages */}
+                    {replyStatus && (
+                      <div
+                        className={`rounded-lg p-4 text-center ${
+                          replyStatus.type === "success"
+                            ? "bg-green-500/20 border border-green-500 text-green-400"
+                            : "bg-red-500/20 border border-red-500 text-red-400"
+                        }`}
+                      >
+                        {replyStatus.message}
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex gap-3 pt-4">
+                      <Button
+                        onClick={sendReply}
+                        disabled={!replyMessage.trim() || sendingReply}
+                        className="flex-1"
+                      >
+                        {sendingReply ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin mr-2" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Mail size={16} className="mr-2" />
+                            Send Reply
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowReplyModal(false)
+                          setReplyMessage("")
+                          setReplyStatus(null)
+                        }}
+                        variant="outline"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
