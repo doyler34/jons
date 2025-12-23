@@ -238,6 +238,7 @@ export default function AdminDashboard() {
       const blob = await upload(file.name, file, {
         access: 'public',
         handleUploadUrl: '/api/admin/upload/token',
+        addRandomSuffix: true,
       })
       
       const url = blob.url
@@ -365,6 +366,7 @@ export default function AdminDashboard() {
       const blob = await upload(file.name, file, {
         access: 'public',
         handleUploadUrl: '/api/admin/upload/token',
+        addRandomSuffix: true,
       })
       
       setPosterUrl(blob.url)
@@ -736,6 +738,7 @@ export default function AdminDashboard() {
       const audioBlob = await upload(newSong.audioFile.name, newSong.audioFile, {
         access: 'public',
         handleUploadUrl: '/api/admin/upload/token',
+        addRandomSuffix: true,
       })
       const audioUrl = audioBlob.url
 
@@ -746,6 +749,7 @@ export default function AdminDashboard() {
           const coverBlob = await upload(newSong.coverFile.name, newSong.coverFile, {
             access: 'public',
             handleUploadUrl: '/api/admin/upload/token',
+            addRandomSuffix: true,
           })
           coverUrl = coverBlob.url
         } catch (error) {
