@@ -7,12 +7,12 @@ export default function GallerySection() {
   const [currentIndex, setCurrentIndex] = useState(0)
 
   const images = [
-    "/dark-artist-lifestyle-dark-aesthetic.jpg",
-    "/underground-hip-hop-concert-glitchy.jpg",
-    "/rap-artist-studio-recording-session.jpg",
-    "/dark-moody-street-art-hip-hop.jpg",
-    "/neon-lights-concert-stage-purple.jpg",
-    "/graffiti-wall-urban-hip-hop-aesthetic.jpg",
+    "/jon-spirit-banner.jpg",
+    "/placeholder.svg",
+    "/placeholder.svg",
+    "/placeholder.svg",
+    "/placeholder.svg",
+    "/placeholder.svg",
   ]
 
   const nextImage = () => {

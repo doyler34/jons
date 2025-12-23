@@ -72,8 +72,8 @@ export default function SocialsPage() {
             const IconComponent = social.icon
             const cardContent = (
               <div className="flex flex-col items-center justify-center text-center space-y-2 md:space-y-4">
-                <div className="p-3 md:p-4 bg-black/20 rounded-xl group-hover:bg-black/30 transition-colors text-white">
-                  <IconComponent size={32} />
+                <div className="p-3 md:p-4 bg-black/20 rounded-xl group-hover:bg-black/30 transition-colors">
+                  <IconComponent size={32} className="text-white w-8 h-8 md:w-10 md:h-10" />
                 </div>
                 <div>
                   <h3 className="text-sm md:text-xl font-bold text-white mb-1">{social.name}</h3>

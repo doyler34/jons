@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import { Play, Pause, SkipBack, SkipForward } from "lucide-react"
 import { useRef, useEffect, useState, useCallback } from "react"
 
@@ -140,11 +139,9 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
         <div className="py-4 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1 min-w-0">
             {currentTrack.image && (
-              <Image
+              <img
                 src={currentTrack.image || "/placeholder.svg"}
                 alt={currentTrack.title}
-                width={40}
-                height={40}
                 className="w-10 h-10 rounded object-cover"
               />
             )}

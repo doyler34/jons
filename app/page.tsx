@@ -1,6 +1,5 @@
 "use client"
 import { useState, useEffect } from "react"
-import Image from "next/image"
 import Navigation from "@/components/navigation"
 import HeroSection from "@/components/hero-section"
 import PlayerBar from "@/components/player-bar"
@@ -111,13 +110,10 @@ export default function Home() {
           <div className="space-y-8 animate-slide-in-left">
             {artistImage && (
               <div className="rounded-xl overflow-hidden border border-border hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,23,68,0.2)]">
-                <Image
+                <img
                   src={artistImage}
                   alt="Jon Spirit"
-                  width={640}
-                  height={640}
                   className="w-full aspect-square object-cover transition-transform duration-500 hover:scale-105"
-                  priority
                 />
               </div>
             )}
