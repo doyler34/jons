@@ -246,9 +246,7 @@ export default function AdminDashboard() {
         const contentType = uploadRes.headers.get("content-type")
         if (!contentType?.includes("application/json")) {
           const text = await uploadRes.text()
-          throw new Error(text.includes("too large") || text.includes("Too Large") ? 
-            `File too large. Max ${type === "audio" ? "50MB" : "4MB"} for ${type}.` : 
-            "Upload failed: " + text.substring(0, 100))
+          throw new Error("Upload failed: " + text.substring(0, 200))
         }
         const errorData = await uploadRes.json()
         throw new Error(errorData.error || "Upload failed")
@@ -387,9 +385,7 @@ export default function AdminDashboard() {
       const contentType = response.headers.get("content-type")
       if (!contentType?.includes("application/json")) {
         const text = await response.text()
-        throw new Error(text.includes("too large") || text.includes("Too Large") ? 
-          "File too large. Max 4MB for images." : 
-          "Upload failed: " + text.substring(0, 100))
+        throw new Error("Upload failed: " + text.substring(0, 200))
       }
 
       const data = await response.json()
@@ -772,9 +768,7 @@ export default function AdminDashboard() {
         const contentType = audioRes.headers.get("content-type")
         if (!contentType?.includes("application/json")) {
           const text = await audioRes.text()
-          throw new Error(text.includes("too large") || text.includes("Too Large") ? 
-            "Audio file too large. Max 50MB." : 
-            "Failed to upload audio: " + text.substring(0, 100))
+          throw new Error("Failed to upload audio: " + text.substring(0, 200))
         }
         const errorData = await audioRes.json()
         throw new Error(errorData.error || "Failed to upload audio")
