@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { put } from "@vercel/blob"
 import { cookies } from "next/headers"
 
+// Configure route to handle larger payloads
+export const maxDuration = 60
+export const runtime = 'nodejs'
+
 export async function POST(request: NextRequest) {
   // Check authentication
   const cookieStore = await cookies()

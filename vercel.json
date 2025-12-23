@@ -1,6 +1,6 @@
 {
   "functions": {
-    "app/api/admin/upload/route.ts": {
+    "app/api/admin/upload/**": {
       "maxDuration": 60,
       "memory": 1024
     }
