@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink } from "lucide-react"
+import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink, Play, Pause } from "lucide-react"
 import { upload } from "@vercel/blob/client"
 
 interface Subscriber {
@@ -114,6 +114,8 @@ export default function AdminDashboard() {
   const [manualSongs, setManualSongs] = useState<ManualSong[]>([])
   const newSongAudioRef = useRef<HTMLInputElement>(null)
   const newSongCoverRef = useRef<HTMLInputElement>(null)
+  const [currentlyPlayingAudio, setCurrentlyPlayingAudio] = useState<HTMLAudioElement | null>(null)
+  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null)
 
   // Subscribers state
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
@@ -1280,13 +1282,33 @@ export default function AdminDashboard() {
                       <div className="flex gap-2 flex-shrink-0">
                         <button
                           onClick={() => {
-                            const audio = new Audio(song.audio_url)
-                            audio.play()
+                            const manualSongId = `manual-${song.id}`
+                            if (playingTrackId === manualSongId) {
+                              // Pause current audio
+                              currentlyPlayingAudio?.pause()
+                              setCurrentlyPlayingAudio(null)
+                              setPlayingTrackId(null)
+                            } else {
+                              // Stop any currently playing audio
+                              if (currentlyPlayingAudio) {
+                                currentlyPlayingAudio.pause()
+                                currentlyPlayingAudio.currentTime = 0
+                              }
+                              // Play new audio
+                              const audio = new Audio(song.audio_url)
+                              audio.play()
+                              audio.onended = () => {
+                                setCurrentlyPlayingAudio(null)
+                                setPlayingTrackId(null)
+                              }
+                              setCurrentlyPlayingAudio(audio)
+                              setPlayingTrackId(manualSongId)
+                            }
                           }}
                           className="p-2 text-green-400 hover:bg-green-400/10 rounded"
-                          title="Play audio"
+                          title={playingTrackId === `manual-${song.id}` ? "Pause audio" : "Play audio"}
                         >
-                          <Music size={14} />
+                          {playingTrackId === `manual-${song.id}` ? <Pause size={14} /> : <Play size={14} />}
                         </button>
                         <button
                           onClick={async () => {
@@ -1441,13 +1463,32 @@ export default function AdminDashboard() {
                             <>
                               <button
                                 onClick={() => {
-                                  const audio = new Audio(override.audio_url!)
-                                  audio.play()
+                                  if (playingTrackId === track.id) {
+                                    // Pause current audio
+                                    currentlyPlayingAudio?.pause()
+                                    setCurrentlyPlayingAudio(null)
+                                    setPlayingTrackId(null)
+                                  } else {
+                                    // Stop any currently playing audio
+                                    if (currentlyPlayingAudio) {
+                                      currentlyPlayingAudio.pause()
+                                      currentlyPlayingAudio.currentTime = 0
+                                    }
+                                    // Play new audio
+                                    const audio = new Audio(override.audio_url!)
+                                    audio.play()
+                                    audio.onended = () => {
+                                      setCurrentlyPlayingAudio(null)
+                                      setPlayingTrackId(null)
+                                    }
+                                    setCurrentlyPlayingAudio(audio)
+                                    setPlayingTrackId(track.id)
+                                  }
                                 }}
                                 className="p-2 text-green-400 hover:bg-green-400/10 rounded"
-                                title="Play audio"
+                                title={playingTrackId === track.id ? "Pause audio" : "Play audio"}
                               >
-                                <Music size={14} />
+                                {playingTrackId === track.id ? <Pause size={14} /> : <Play size={14} />}
                               </button>
                               <button
                                 onClick={() => removeOverride(track.id, "audio")}
