@@ -12,10 +12,22 @@ export async function GET() {
         subject VARCHAR(100) NOT NULL,
         message TEXT NOT NULL,
         read BOOLEAN DEFAULT FALSE,
+        replied BOOLEAN DEFAULT FALSE,
         archived BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `
+
+    // Add replied column if it doesn't exist (for existing tables)
+    try {
+      await sql`
+        ALTER TABLE contact_messages 
+        ADD COLUMN IF NOT EXISTS replied BOOLEAN DEFAULT FALSE
+      `
+    } catch (error) {
+      // Column might already exist, ignore error
+      console.log("Replied column may already exist:", error)
+    }
 
     // Create index for faster queries
     await sql`

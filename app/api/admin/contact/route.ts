@@ -15,25 +15,25 @@ export async function GET(request: NextRequest) {
     const filter = searchParams.get("filter") || "all"
 
     let query = sql`
-      SELECT id, name, email, subject, message, read, archived, created_at
+      SELECT id, name, email, subject, message, read, replied, archived, created_at
       FROM contact_messages
     `
 
     if (filter === "unread") {
       query = sql`
-        SELECT id, name, email, subject, message, read, archived, created_at
+        SELECT id, name, email, subject, message, read, replied, archived, created_at
         FROM contact_messages
         WHERE read = FALSE AND archived = FALSE
       `
     } else if (filter === "archived") {
       query = sql`
-        SELECT id, name, email, subject, message, read, archived, created_at
+        SELECT id, name, email, subject, message, read, replied, archived, created_at
         FROM contact_messages
         WHERE archived = TRUE
       `
     } else if (filter === "all") {
       query = sql`
-        SELECT id, name, email, subject, message, read, archived, created_at
+        SELECT id, name, email, subject, message, read, replied, archived, created_at
         FROM contact_messages
         WHERE archived = FALSE
       `

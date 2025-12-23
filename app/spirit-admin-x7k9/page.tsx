@@ -97,6 +97,7 @@ interface ContactMessage {
   subject: string
   message: string
   read: boolean
+  replied: boolean
   archived: boolean
   created_at: string
 }
@@ -138,6 +139,7 @@ export default function AdminDashboard() {
   const [loadingInbox, setLoadingInbox] = useState(false)
   const [showReplyModal, setShowReplyModal] = useState(false)
   const [replyMessage, setReplyMessage] = useState("")
+  const [replySubject, setReplySubject] = useState("")
   const [sendingReply, setSendingReply] = useState(false)
   const [replyStatus, setReplyStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
 
@@ -1083,7 +1085,7 @@ export default function AdminDashboard() {
 
   // Send reply
   const sendReply = async () => {
-    if (!selectedMessage || !replyMessage.trim()) return
+    if (!selectedMessage || !replyMessage.trim() || !replySubject.trim()) return
 
     setSendingReply(true)
     setReplyStatus(null)
@@ -1095,8 +1097,9 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           to: selectedMessage.email,
           toName: selectedMessage.name,
-          originalSubject: selectedMessage.subject,
+          subject: replySubject.trim(),
           replyMessage: replyMessage.trim(),
+          messageId: selectedMessage.id,
         }),
       })
 
@@ -1105,6 +1108,12 @@ export default function AdminDashboard() {
       if (res.ok) {
         setReplyStatus({ type: "success", message: "Reply sent successfully!" })
         setReplyMessage("")
+        setReplySubject("")
+        // Update local state to show replied status
+        setContactMessages(prev => prev.map(msg => 
+          msg.id === selectedMessage.id ? { ...msg, replied: true } : msg
+        ))
+        setSelectedMessage({ ...selectedMessage, replied: true })
         setTimeout(() => {
           setShowReplyModal(false)
           setReplyStatus(null)
@@ -3012,7 +3021,14 @@ export default function AdminDashboard() {
                         <span className={`font-semibold text-sm ${!msg.read ? "text-primary" : ""}`}>
                           {msg.name}
                         </span>
-                        {!msg.read && <MailOpen size={14} className="text-primary flex-shrink-0 mt-1" />}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {msg.replied && (
+                            <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded border border-green-500/50">
+                              ✓
+                            </span>
+                          )}
+                          {!msg.read && <MailOpen size={14} className="text-primary mt-1" />}
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground mb-2">{msg.email}</p>
                       <p className="text-xs font-medium text-muted-foreground uppercase mb-1">
@@ -3075,17 +3091,25 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="border-t border-border pt-4">
-                        <Button
-                          onClick={() => {
-                            setShowReplyModal(true)
-                            setReplyMessage("")
-                            setReplyStatus(null)
-                          }}
-                          className="inline-flex items-center gap-2"
-                        >
-                          <Mail size={16} />
-                          Reply via Email
-                        </Button>
+                        <div className="flex items-center gap-3">
+                          <Button
+                            onClick={() => {
+                              setShowReplyModal(true)
+                              setReplyMessage("")
+                              setReplySubject(`Re: ${selectedMessage.subject}`)
+                              setReplyStatus(null)
+                            }}
+                            className="inline-flex items-center gap-2"
+                          >
+                            <Mail size={16} />
+                            Reply via Email
+                          </Button>
+                          {selectedMessage.replied && (
+                            <span className="text-xs bg-green-500/20 text-green-400 px-3 py-1 rounded-full border border-green-500/50">
+                              ✓ Replied
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -3111,6 +3135,7 @@ export default function AdminDashboard() {
                       onClick={() => {
                         setShowReplyModal(false)
                         setReplyMessage("")
+                        setReplySubject("")
                         setReplyStatus(null)
                       }}
                       className="p-2 hover:bg-muted rounded"
@@ -3126,6 +3151,18 @@ export default function AdminDashboard() {
                       <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                         {selectedMessage.message}
                       </p>
+                    </div>
+
+                    {/* Subject Line */}
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Subject:</label>
+                      <input
+                        type="text"
+                        value={replySubject}
+                        onChange={(e) => setReplySubject(e.target.value)}
+                        placeholder="Re: [subject]"
+                        className="w-full bg-background border border-border text-foreground rounded-lg px-4 py-3 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-300"
+                      />
                     </div>
 
                     {/* Reply Form */}
@@ -3183,7 +3220,7 @@ export default function AdminDashboard() {
                     <div className="flex gap-3 pt-4">
                       <Button
                         onClick={sendReply}
-                        disabled={!replyMessage.trim() || sendingReply}
+                        disabled={!replyMessage.trim() || !replySubject.trim() || sendingReply}
                         className="flex-1"
                       >
                         {sendingReply ? (
@@ -3202,6 +3239,7 @@ export default function AdminDashboard() {
                         onClick={() => {
                           setShowReplyModal(false)
                           setReplyMessage("")
+                          setReplySubject("")
                           setReplyStatus(null)
                         }}
                         variant="outline"

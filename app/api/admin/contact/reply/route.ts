@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { sql } from "@vercel/postgres"
 import { cookies } from "next/headers"
 
 export async function POST(request: NextRequest) {
@@ -10,11 +11,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { to, toName, originalSubject, replyMessage } = await request.json()
+    const { to, toName, subject, replyMessage, messageId } = await request.json()
 
-    if (!to || !replyMessage) {
+    if (!to || !replyMessage || !subject) {
       return NextResponse.json(
-        { error: "Recipient email and message are required" },
+        { error: "Recipient email, subject, and message are required" },
         { status: 400 }
       )
     }
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
         from: "Jon Spirit <noreply@reply.jonspirit.com>",
         to: to,
         reply_to: "info@jonspirit.com",
-        subject: `Re: ${originalSubject}`,
+        subject: subject,
         html: `
           <!DOCTYPE html>
           <html>
@@ -123,6 +124,19 @@ ${replyMessage}
     const data = await response.json()
 
     if (response.ok) {
+      // Mark message as replied
+      if (messageId) {
+        try {
+          await sql`
+            UPDATE contact_messages
+            SET replied = TRUE
+            WHERE id = ${messageId}
+          `
+        } catch (dbError) {
+          console.error("Failed to mark as replied:", dbError)
+          // Don't fail the whole request if this fails
+        }
+      }
       return NextResponse.json({ success: true, message: "Reply sent successfully!" })
     } else {
       console.error("Resend error:", data)
