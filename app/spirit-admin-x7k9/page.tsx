@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink, Play, Pause } from "lucide-react"
-import { upload } from "@vercel/blob/client"
+import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink } from "lucide-react"
 
 interface Subscriber {
   id: string
@@ -114,8 +113,6 @@ export default function AdminDashboard() {
   const [manualSongs, setManualSongs] = useState<ManualSong[]>([])
   const newSongAudioRef = useRef<HTMLInputElement>(null)
   const newSongCoverRef = useRef<HTMLInputElement>(null)
-  const [currentlyPlayingAudio, setCurrentlyPlayingAudio] = useState<HTMLAudioElement | null>(null)
-  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null)
 
   // Subscribers state
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
@@ -236,15 +233,20 @@ export default function AdminDashboard() {
     setMusicStatus(null)
 
     try {
-      // Upload directly to Vercel Blob (client-side) with unique filename
-      const timestamp = Date.now()
-      const fileName = `${timestamp}-${file.name}`
-      const blob = await upload(fileName, file, {
-        access: 'public',
-        handleUploadUrl: '/api/admin/upload/token',
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const uploadRes = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
       })
-      
-      const url = blob.url
+
+      if (!uploadRes.ok) {
+        const errorData = await uploadRes.json()
+        throw new Error(errorData.error || "Upload failed")
+      }
+
+      const { url } = await uploadRes.json()
 
       const saveRes = await fetch("/api/songs/overrides", {
         method: "POST",
@@ -365,18 +367,24 @@ export default function AdminDashboard() {
     setSendStatus(null)
 
     try {
-      // Upload directly to Vercel Blob (client-side) with unique filename
-      const timestamp = Date.now()
-      const fileName = `${timestamp}-${file.name}`
-      const blob = await upload(fileName, file, {
-        access: 'public',
-        handleUploadUrl: '/api/admin/upload/token',
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const response = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
       })
-      
-      setPosterUrl(blob.url)
-      setSendStatus({ type: "success", message: "Image uploaded!" })
-    } catch (error) {
-      setSendStatus({ type: "error", message: error instanceof Error ? error.message : "Upload failed" })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setPosterUrl(data.url)
+        setSendStatus({ type: "success", message: "Image uploaded!" })
+      } else {
+        setSendStatus({ type: "error", message: data.error || "Upload failed" })
+      }
+    } catch {
+      setSendStatus({ type: "error", message: "Upload failed" })
     } finally {
       setUploading(false)
     }
@@ -736,31 +744,22 @@ export default function AdminDashboard() {
     setMusicStatus(null)
 
     try {
-      // Skip client-side validation - let server handle it
-      
-      // Upload audio file directly to Vercel Blob (client-side) with unique filename
-      const audioTimestamp = Date.now()
-      const audioFileName = `${audioTimestamp}-${newSong.audioFile.name}`
-      const audioBlob = await upload(audioFileName, newSong.audioFile, {
-        access: 'public',
-        handleUploadUrl: '/api/admin/upload/token',
-      })
-      const audioUrl = audioBlob.url
+      // Upload audio file
+      const audioFormData = new FormData()
+      audioFormData.append("file", newSong.audioFile)
+      const audioRes = await fetch("/api/admin/upload", { method: "POST", body: audioFormData })
+      if (!audioRes.ok) throw new Error("Failed to upload audio")
+      const { url: audioUrl } = await audioRes.json()
 
       // Upload cover if provided
       let coverUrl = null
       if (newSong.coverFile) {
-        try {
-          const coverTimestamp = Date.now()
-          const coverFileName = `${coverTimestamp}-${newSong.coverFile.name}`
-          const coverBlob = await upload(coverFileName, newSong.coverFile, {
-            access: 'public',
-            handleUploadUrl: '/api/admin/upload/token',
-          })
-          coverUrl = coverBlob.url
-        } catch (error) {
-          console.warn("Cover upload failed:", error)
-          // Don't throw error for cover - it's optional
+        const coverFormData = new FormData()
+        coverFormData.append("file", newSong.coverFile)
+        const coverRes = await fetch("/api/admin/upload", { method: "POST", body: coverFormData })
+        if (coverRes.ok) {
+          const { url } = await coverRes.json()
+          coverUrl = url
         }
       }
 
@@ -1279,51 +1278,6 @@ export default function AdminDashboard() {
                           Manual Upload
                         </span>
                       </div>
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => {
-                            const manualSongId = `manual-${song.id}`
-                            if (playingTrackId === manualSongId) {
-                              // Pause current audio
-                              currentlyPlayingAudio?.pause()
-                              setCurrentlyPlayingAudio(null)
-                              setPlayingTrackId(null)
-                            } else {
-                              // Stop any currently playing audio
-                              if (currentlyPlayingAudio) {
-                                currentlyPlayingAudio.pause()
-                                currentlyPlayingAudio.currentTime = 0
-                              }
-                              // Play new audio
-                              const audio = new Audio(song.audio_url)
-                              audio.play()
-                              audio.onended = () => {
-                                setCurrentlyPlayingAudio(null)
-                                setPlayingTrackId(null)
-                              }
-                              setCurrentlyPlayingAudio(audio)
-                              setPlayingTrackId(manualSongId)
-                            }
-                          }}
-                          className="p-2 text-green-400 hover:bg-green-400/10 rounded"
-                          title={playingTrackId === `manual-${song.id}` ? "Pause audio" : "Play audio"}
-                        >
-                          {playingTrackId === `manual-${song.id}` ? <Pause size={14} /> : <Play size={14} />}
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (confirm(`Delete "${song.title}"?`)) {
-                              await fetch(`/api/songs/manual?id=${song.id}`, { method: "DELETE" })
-                              setManualSongs(prev => prev.filter(s => s.id !== song.id))
-                              setMusicStatus({ type: "success", message: "Song deleted" })
-                            }
-                          }}
-                          className="p-2 text-red-400 hover:bg-red-400/10 rounded"
-                          title="Delete song"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
                     </div>
                   ))}
 
@@ -1460,44 +1414,13 @@ export default function AdminDashboard() {
                           </div>
 
                           {hasAudio && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  if (playingTrackId === track.id) {
-                                    // Pause current audio
-                                    currentlyPlayingAudio?.pause()
-                                    setCurrentlyPlayingAudio(null)
-                                    setPlayingTrackId(null)
-                                  } else {
-                                    // Stop any currently playing audio
-                                    if (currentlyPlayingAudio) {
-                                      currentlyPlayingAudio.pause()
-                                      currentlyPlayingAudio.currentTime = 0
-                                    }
-                                    // Play new audio
-                                    const audio = new Audio(override.audio_url!)
-                                    audio.play()
-                                    audio.onended = () => {
-                                      setCurrentlyPlayingAudio(null)
-                                      setPlayingTrackId(null)
-                                    }
-                                    setCurrentlyPlayingAudio(audio)
-                                    setPlayingTrackId(track.id)
-                                  }
-                                }}
-                                className="p-2 text-green-400 hover:bg-green-400/10 rounded"
-                                title={playingTrackId === track.id ? "Pause audio" : "Play audio"}
-                              >
-                                {playingTrackId === track.id ? <Pause size={14} /> : <Play size={14} />}
-                              </button>
-                              <button
-                                onClick={() => removeOverride(track.id, "audio")}
-                                className="p-2 text-red-400 hover:bg-red-400/10 rounded"
-                                title="Remove audio"
-                              >
-                                <X size={14} />
-                              </button>
-                            </>
+                            <button
+                              onClick={() => removeOverride(track.id, "audio")}
+                              className="p-2 text-red-400 hover:bg-red-400/10 rounded"
+                              title="Remove audio"
+                            >
+                              <X size={14} />
+                            </button>
                           )}
                         </div>
                       </div>

@@ -11,7 +11,7 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ onPlay, artistImage, trackName = "LATEST TRACK" }: HeroSectionProps) {
-  const backgroundImage = artistImage || "/black-and-white-rapper-portrait.jpg"
+  const backgroundImage = "/jon-spirit-banner.jpg"
   const [imageLoaded, setImageLoaded] = useState(false)
 
   useEffect(() => {
@@ -40,11 +40,11 @@ export default function HeroSection({ onPlay, artistImage, trackName = "LATEST T
       </div>
 
       {/* Content */}
-      <div className={`relative z-10 text-center px-4 max-w-4xl overflow-visible transition-opacity duration-1000 ${
-        imageLoaded ? "opacity-100" : "opacity-0"
-      }`}>
+      <div className="relative z-10 text-center px-4 max-w-4xl overflow-visible">
         <h1
-          className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl mb-6 md:mb-8 overflow-visible py-2 md:py-4 uppercase animate-write-on"
+          className={`text-4xl sm:text-5xl md:text-7xl lg:text-8xl mb-6 md:mb-8 overflow-visible py-2 md:py-4 uppercase ${
+            imageLoaded ? "animate-write-on" : "opacity-0"
+          }`}
           style={{
             fontFamily: "'Clash Display', system-ui, sans-serif",
             fontWeight: 700,
@@ -56,7 +56,9 @@ export default function HeroSection({ onPlay, artistImage, trackName = "LATEST T
           JON SPIRIT
         </h1>
 
-        <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center px-4 animate-fade-in-up stagger-2">
+        <div className={`flex flex-col sm:flex-row gap-3 md:gap-4 justify-center px-4 ${
+          imageLoaded ? "animate-fade-in-up stagger-2" : "opacity-0"
+        }`}>
           <Button
             onClick={onPlay}
             className="px-5 py-3 md:px-6 md:py-4 text-xs md:text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-300 hover-glow animate-pulse-glow tracking-wide"
