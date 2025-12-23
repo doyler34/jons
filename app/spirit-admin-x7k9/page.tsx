@@ -234,11 +234,12 @@ export default function AdminDashboard() {
     setMusicStatus(null)
 
     try {
-      // Upload directly to Vercel Blob (client-side)
-      const blob = await upload(file.name, file, {
+      // Upload directly to Vercel Blob (client-side) with unique filename
+      const timestamp = Date.now()
+      const fileName = `${timestamp}-${file.name}`
+      const blob = await upload(fileName, file, {
         access: 'public',
         handleUploadUrl: '/api/admin/upload/token',
-        addRandomSuffix: true,
       })
       
       const url = blob.url
@@ -362,11 +363,12 @@ export default function AdminDashboard() {
     setSendStatus(null)
 
     try {
-      // Upload directly to Vercel Blob (client-side)
-      const blob = await upload(file.name, file, {
+      // Upload directly to Vercel Blob (client-side) with unique filename
+      const timestamp = Date.now()
+      const fileName = `${timestamp}-${file.name}`
+      const blob = await upload(fileName, file, {
         access: 'public',
         handleUploadUrl: '/api/admin/upload/token',
-        addRandomSuffix: true,
       })
       
       setPosterUrl(blob.url)
@@ -734,11 +736,12 @@ export default function AdminDashboard() {
     try {
       // Skip client-side validation - let server handle it
       
-      // Upload audio file directly to Vercel Blob (client-side)
-      const audioBlob = await upload(newSong.audioFile.name, newSong.audioFile, {
+      // Upload audio file directly to Vercel Blob (client-side) with unique filename
+      const audioTimestamp = Date.now()
+      const audioFileName = `${audioTimestamp}-${newSong.audioFile.name}`
+      const audioBlob = await upload(audioFileName, newSong.audioFile, {
         access: 'public',
         handleUploadUrl: '/api/admin/upload/token',
-        addRandomSuffix: true,
       })
       const audioUrl = audioBlob.url
 
@@ -746,10 +749,11 @@ export default function AdminDashboard() {
       let coverUrl = null
       if (newSong.coverFile) {
         try {
-          const coverBlob = await upload(newSong.coverFile.name, newSong.coverFile, {
+          const coverTimestamp = Date.now()
+          const coverFileName = `${coverTimestamp}-${newSong.coverFile.name}`
+          const coverBlob = await upload(coverFileName, newSong.coverFile, {
             access: 'public',
             handleUploadUrl: '/api/admin/upload/token',
-            addRandomSuffix: true,
           })
           coverUrl = coverBlob.url
         } catch (error) {
