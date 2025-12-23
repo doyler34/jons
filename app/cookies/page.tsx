@@ -1,3 +1,5 @@
+"use client"
+
 export default function CookiesPolicy() {
   return (
     <div className="min-h-screen bg-background text-foreground">

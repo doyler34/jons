@@ -3,6 +3,8 @@ import type { Metadata } from "next"
 import { Montserrat, Poppins } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import Footer from "@/components/footer"
+import CookieConsent from "@/components/cookie-consent"
+import CookieResetButton from "@/components/cookie-reset-button"
 import "./globals.css"
 
 const montserrat = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800", "900"] })
@@ -43,6 +45,8 @@ export default function RootLayout({
       <body className={`${montserrat.className} ${poppins.variable} antialiased bg-[#0a0a0a] text-white`}>
         {children}
         <Footer />
+        <CookieConsent />
+        <CookieResetButton />
         <Analytics />
       </body>
     </html>

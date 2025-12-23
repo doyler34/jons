@@ -1,21 +1,29 @@
 "use client"
 import Navigation from "@/components/navigation"
 import Link from "next/link"
-import { Music, Instagram, Youtube, Cloud } from "lucide-react"
+import { SpotifyLogo, AppleMusicLogo, InstagramLogo, YouTubeLogo, TikTokLogo, SoundCloudLogo } from "@/components/social-logos"
 
 const socialLinks = [
   {
     name: "Spotify",
     description: "Stream all tracks and playlists",
-    icon: Music,
+    icon: SpotifyLogo,
     bgColor: "bg-[#1DB954]",
     href: "https://open.spotify.com/artist/2JvA93ASY6Tq4bISN2eh6Z",
     external: true,
   },
   {
+    name: "Apple Music",
+    description: "Stream on Apple Music",
+    icon: AppleMusicLogo,
+    bgColor: "bg-gradient-to-br from-[#FA243C] to-[#FA57A0]",
+    href: "https://music.apple.com/artist/jonspirit",
+    external: true,
+  },
+  {
     name: "Instagram",
     description: "Behind-the-scenes & updates",
-    icon: Instagram,
+    icon: InstagramLogo,
     bgColor: "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400",
     href: "/instagram",
     external: false,
@@ -23,15 +31,23 @@ const socialLinks = [
   {
     name: "YouTube",
     description: "Music videos & visual content",
-    icon: Youtube,
+    icon: YouTubeLogo,
     bgColor: "bg-[#FF0000]",
     href: "https://www.youtube.com/@Jonspiritprime",
     external: true,
   },
   {
+    name: "TikTok",
+    description: "Short clips & viral content",
+    icon: TikTokLogo,
+    bgColor: "bg-gradient-to-br from-[#00F2EA] via-[#FF0050] to-black",
+    href: "https://www.tiktok.com/@jonspirit",
+    external: true,
+  },
+  {
     name: "SoundCloud",
     description: "Exclusive & unreleased tracks",
-    icon: Cloud,
+    icon: SoundCloudLogo,
     bgColor: "bg-[#FF5500]",
     href: "https://soundcloud.com/jonspirit",
     external: true,
@@ -43,11 +59,11 @@ export default function SocialsPage() {
     <div className="min-h-screen bg-background pb-24">
       <Navigation />
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-16 py-8 md:py-12">
-        <h1 className="text-3xl sm:text-4xl md:text-6xl font-black mb-2 text-foreground tracking-tighter">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-16 py-12">
+        <h1 className="text-5xl md:text-6xl font-black mb-2 text-foreground tracking-tighter animate-fade-in-up">
           LINK IN BIO
         </h1>
-        <p className="text-primary text-base md:text-lg mb-8 md:mb-12 font-semibold">
+        <p className="text-primary text-lg mb-12 font-semibold animate-fade-in-up stagger-2">
           Follow Jon Spirit on all platforms
         </p>
 
@@ -57,7 +73,7 @@ export default function SocialsPage() {
             const cardContent = (
               <div className="flex flex-col items-center justify-center text-center space-y-2 md:space-y-4">
                 <div className="p-3 md:p-4 bg-black/20 rounded-xl group-hover:bg-black/30 transition-colors">
-                  <IconComponent size={24} className="md:w-8 md:h-8 text-white" />
+                  <IconComponent size={32} className="text-white w-8 h-8 md:w-10 md:h-10" />
                 </div>
                 <div>
                   <h3 className="text-sm md:text-xl font-bold text-white mb-1">{social.name}</h3>
@@ -89,16 +105,17 @@ export default function SocialsPage() {
           })}
         </div>
 
-        <div className="mt-10 md:mt-16 bg-card rounded-xl p-6 md:p-12 border border-border text-center max-w-2xl mx-auto">
-          <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3 md:mb-4">JOIN THE SPIRIT REALM</h2>
-          <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6">
-            Subscribe for exclusive drops and early access to new releases.
+        <div className="mt-16 bg-card rounded-lg p-12 border border-border text-center max-w-2xl mx-auto animate-fade-in-up stagger-5">
+          <h2 className="text-2xl font-bold text-foreground mb-4">JOIN THE SPIRIT REALM</h2>
+          <p className="text-muted-foreground mb-6">
+            Subscribe to Jon Spirit's mailing list for exclusive drops, behind-the-scenes content, and early access to
+            new releases.
           </p>
           <a
-            href="/contact"
-            className="inline-block px-6 md:px-8 py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg transition-all duration-300 text-sm md:text-base"
+            href="#"
+            className="inline-block px-8 py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg transition-all duration-300 hover-glow"
           >
-            GET IN TOUCH
+            SUBSCRIBE NOW
           </a>
         </div>
       </div>

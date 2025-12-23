@@ -233,6 +233,23 @@ export default function AdminDashboard() {
     setMusicStatus(null)
 
     try {
+      // Validate file type
+      const isAudio = file.type.startsWith("audio/")
+      const isImage = file.type.startsWith("image/")
+      
+      if (type === "audio" && !isAudio) {
+        throw new Error("Please select an audio file")
+      }
+      if (type === "cover" && !isImage) {
+        throw new Error("Please select an image file")
+      }
+
+      // Validate file size
+      const maxSize = type === "audio" ? 50 * 1024 * 1024 : 4 * 1024 * 1024
+      if (file.size > maxSize) {
+        throw new Error(`File too large. Max ${type === "audio" ? "50MB" : "4MB"} for ${type}`)
+      }
+
       const formData = new FormData()
       formData.append("file", file)
 
@@ -242,6 +259,13 @@ export default function AdminDashboard() {
       })
 
       if (!uploadRes.ok) {
+        const contentType = uploadRes.headers.get("content-type")
+        if (!contentType?.includes("application/json")) {
+          const text = await uploadRes.text()
+          throw new Error(text.includes("too large") || text.includes("Too Large") ? 
+            `File too large. Max ${type === "audio" ? "50MB" : "4MB"} for ${type}.` : 
+            "Upload failed: " + text.substring(0, 100))
+        }
         const errorData = await uploadRes.json()
         throw new Error(errorData.error || "Upload failed")
       }
@@ -367,6 +391,17 @@ export default function AdminDashboard() {
     setSendStatus(null)
 
     try {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        throw new Error("Please select an image file")
+      }
+
+      // Validate file size (max 4MB for newsletter images)
+      const maxSize = 4 * 1024 * 1024
+      if (file.size > maxSize) {
+        throw new Error("Image too large. Max 4MB")
+      }
+
       const formData = new FormData()
       formData.append("file", file)
 
@@ -374,6 +409,14 @@ export default function AdminDashboard() {
         method: "POST",
         body: formData,
       })
+
+      const contentType = response.headers.get("content-type")
+      if (!contentType?.includes("application/json")) {
+        const text = await response.text()
+        throw new Error(text.includes("too large") || text.includes("Too Large") ? 
+          "File too large. Max 4MB for images." : 
+          "Upload failed: " + text.substring(0, 100))
+      }
 
       const data = await response.json()
 
@@ -383,8 +426,8 @@ export default function AdminDashboard() {
       } else {
         setSendStatus({ type: "error", message: data.error || "Upload failed" })
       }
-    } catch {
-      setSendStatus({ type: "error", message: "Upload failed" })
+    } catch (error) {
+      setSendStatus({ type: "error", message: error instanceof Error ? error.message : "Upload failed" })
     } finally {
       setUploading(false)
     }
@@ -744,11 +787,42 @@ export default function AdminDashboard() {
     setMusicStatus(null)
 
     try {
+      // Validate audio file
+      if (!newSong.audioFile.type.startsWith("audio/")) {
+        throw new Error("Please select a valid audio file")
+      }
+      const audioMaxSize = 50 * 1024 * 1024
+      if (newSong.audioFile.size > audioMaxSize) {
+        throw new Error("Audio file too large. Max 50MB")
+      }
+
+      // Validate cover file if provided
+      if (newSong.coverFile) {
+        if (!newSong.coverFile.type.startsWith("image/")) {
+          throw new Error("Cover must be an image file")
+        }
+        const coverMaxSize = 4 * 1024 * 1024
+        if (newSong.coverFile.size > coverMaxSize) {
+          throw new Error("Cover image too large. Max 4MB")
+        }
+      }
+
       // Upload audio file
       const audioFormData = new FormData()
       audioFormData.append("file", newSong.audioFile)
       const audioRes = await fetch("/api/admin/upload", { method: "POST", body: audioFormData })
-      if (!audioRes.ok) throw new Error("Failed to upload audio")
+      
+      if (!audioRes.ok) {
+        const contentType = audioRes.headers.get("content-type")
+        if (!contentType?.includes("application/json")) {
+          const text = await audioRes.text()
+          throw new Error(text.includes("too large") || text.includes("Too Large") ? 
+            "Audio file too large. Max 50MB." : 
+            "Failed to upload audio: " + text.substring(0, 100))
+        }
+        const errorData = await audioRes.json()
+        throw new Error(errorData.error || "Failed to upload audio")
+      }
       const { url: audioUrl } = await audioRes.json()
 
       // Upload cover if provided
@@ -757,9 +831,20 @@ export default function AdminDashboard() {
         const coverFormData = new FormData()
         coverFormData.append("file", newSong.coverFile)
         const coverRes = await fetch("/api/admin/upload", { method: "POST", body: coverFormData })
+        
         if (coverRes.ok) {
           const { url } = await coverRes.json()
           coverUrl = url
+        } else {
+          const contentType = coverRes.headers.get("content-type")
+          if (contentType?.includes("application/json")) {
+            const errorData = await coverRes.json()
+            console.warn("Cover upload failed:", errorData.error)
+          } else {
+            const text = await coverRes.text()
+            console.warn("Cover upload failed:", text.substring(0, 100))
+          }
+          // Don't throw error for cover - it's optional
         }
       }
 
