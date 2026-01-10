@@ -7,11 +7,8 @@ export const SpotifyLogo = ({ size = 24 }: { size?: number }) => (
 )
 
 export const AppleMusicLogo = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <path d="M9 18V9l12-3v9"/>
-    <circle cx="6" cy="18" r="3" fill="currentColor"/>
-    <circle cx="18" cy="15" r="3" fill="currentColor"/>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M19.5 3.25a1 1 0 0 0-.82-.19l-8 2A1 1 0 0 0 10 6v9.28a2.4 2.4 0 0 0-1-.21c-1.37 0-2.5 1.03-2.5 2.3S7.63 20 9 20s2.5-1.03 2.5-2.3V9.44l7-1.75V14a2.4 2.4 0 0 0-1-.21c-1.37 0-2.5 1.03-2.5 2.3S14.13 19 15.5 19s2.5-1.03 2.5-2.3V4a1 1 0 0 0-.5-.75Z" />
   </svg>
 )
 

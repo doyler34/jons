@@ -1,7 +1,7 @@
 "use client"
 import Navigation from "@/components/navigation"
 import Link from "next/link"
-import { SpotifyLogo, InstagramLogo, YouTubeLogo, TikTokLogo, SoundCloudLogo } from "@/components/social-logos"
+import { SpotifyLogo, AppleMusicLogo, InstagramLogo, YouTubeLogo, TikTokLogo, SoundCloudLogo } from "@/components/social-logos"
 
 const socialLinks = [
   {
@@ -10,6 +10,14 @@ const socialLinks = [
     icon: SpotifyLogo,
     bgColor: "bg-[#1DB954]",
     href: "https://open.spotify.com/artist/2JvA93ASY6Tq4bISN2eh6Z",
+    external: true,
+  },
+  {
+    name: "Apple Music",
+    description: "Stream on Apple Music",
+    icon: AppleMusicLogo,
+    bgColor: "bg-gradient-to-br from-[#FA243C] to-[#FA57A0]",
+    href: "https://music.apple.com/artist/jonspirit",
     external: true,
   },
   {
