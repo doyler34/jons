@@ -88,12 +88,13 @@ export default function Home() {
     : []
 
   const genres = spotifyData?.artist?.genres || []
+  const heroBannerImage = "/jon-spirit-banner.jpg"
   const artistImage = spotifyData?.artist?.images?.[0]?.url
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <HeroSection onPlay={handlePlay} artistImage={artistImage} trackName={firstTrackName} />
+      <HeroSection onPlay={handlePlay} artistImage={heroBannerImage} trackName={firstTrackName} />
 
       {/* About Section */}
       <section id="about" className="w-full px-6 md:px-12 lg:px-16 py-20 lg:py-32">
