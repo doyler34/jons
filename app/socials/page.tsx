@@ -9,6 +9,7 @@ const socialLinks = [
     description: "Stream all tracks and playlists",
     icon: SpotifyLogo,
     bgColor: "bg-gradient-to-br from-[#1DB954] to-[#12833b]",
+    borderClass: "border border-white/10",
     href: "https://open.spotify.com/artist/2JvA93ASY6Tq4bISN2eh6Z",
     external: true,
   },
@@ -17,6 +18,7 @@ const socialLinks = [
     description: "Stream on Apple Music",
     icon: AppleMusicLogo,
     bgColor: "bg-gradient-to-br from-[#FA243C] to-[#FA57A0]",
+    borderClass: "border border-white/10",
     href: "https://music.apple.com/artist/jonspirit",
     external: true,
   },
@@ -25,6 +27,7 @@ const socialLinks = [
     description: "Behind-the-scenes & updates",
     icon: InstagramLogo,
     bgColor: "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400",
+    borderClass: "border border-white/10",
     href: "/instagram",
     external: false,
   },
@@ -33,6 +36,7 @@ const socialLinks = [
     description: "Music videos & visual content",
     icon: YouTubeLogo,
     bgColor: "bg-gradient-to-br from-[#ff0000] to-[#c40000]",
+    borderClass: "border border-white/10",
     href: "https://www.youtube.com/@Jonspiritprime",
     external: true,
   },
@@ -41,6 +45,7 @@ const socialLinks = [
     description: "Short clips & viral content",
     icon: TikTokLogo,
     bgColor: "bg-gradient-to-br from-[#00F2EA] via-[#FF0050] to-[#000000]",
+    borderClass: "border border-[#00F2EA]/40",
     href: "https://www.tiktok.com/@jonspirit",
     external: true,
   },
@@ -49,6 +54,7 @@ const socialLinks = [
     description: "Exclusive & unreleased tracks",
     icon: SoundCloudLogo,
     bgColor: "bg-gradient-to-br from-[#FF7E00] to-[#FF5500]",
+    borderClass: "border border-white/10",
     href: "https://soundcloud.com/jonspirit",
     external: true,
   },
@@ -61,7 +67,7 @@ export default function SocialsPage() {
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-16 py-12">
         <h1 className="text-5xl md:text-6xl font-black mb-2 text-foreground tracking-tighter animate-fade-in-up">
-          LINK IN BIO
+          SOCIALS
         </h1>
         <p className="text-primary text-lg mb-12 font-semibold animate-fade-in-up stagger-2">
           Follow Jon Spirit on all platforms
@@ -81,7 +87,7 @@ export default function SocialsPage() {
                 </div>
               </div>
             )
-            const cardClass = `group rounded-xl p-4 md:p-8 ${social.bgColor} text-white shadow-md shadow-black/25 border border-white/10 hover:shadow-lg hover:shadow-white/10 transition-all transform hover:scale-105 active:scale-95`
+            const cardClass = `group rounded-xl p-4 md:p-8 ${social.bgColor} text-white shadow-md shadow-black/25 ${social.borderClass || "border border-white/10"} hover:shadow-lg hover:shadow-white/10 transition-all transform hover:scale-105 active:scale-95`
             
             return social.external ? (
               <a
