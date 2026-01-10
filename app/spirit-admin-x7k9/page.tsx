@@ -1278,6 +1278,19 @@ export default function AdminDashboard() {
                           Manual Upload
                         </span>
                       </div>
+                      {song.audio_url && (
+                        <div className="flex gap-2 flex-shrink-0">
+                          <a
+                            href={song.audio_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                          >
+                            <Download size={14} />
+                            Download
+                          </a>
+                        </div>
+                      )}
                     </div>
                   ))}
 
@@ -1382,6 +1395,19 @@ export default function AdminDashboard() {
                               {hasAudio ? "Replace" : "Audio"}
                             </label>
                           </div>
+
+                          {hasAudio && (
+                            <a
+                              href={override.audio_url || undefined}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                              title="Download custom audio"
+                            >
+                              <Download size={14} />
+                              Download
+                            </a>
+                          )}
 
                           <div className="relative">
                             <input
