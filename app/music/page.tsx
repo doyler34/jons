@@ -3,7 +3,6 @@ import Navigation from "@/components/navigation"
 import PlayerBar from "@/components/player-bar"
 import NewsletterForm from "@/components/newsletter-form"
 import { useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
 import { Play, Pause, Loader2, ExternalLink, Clock, Disc3, ChevronLeft } from "lucide-react"
 
 interface SpotifyTrack {
@@ -68,7 +67,6 @@ export default function MusicPage() {
   const [loading, setLoading] = useState(true)
   const [overrides, setOverrides] = useState<Record<string, SongOverride>>({})
   const [autoplayAlbumId, setAutoplayAlbumId] = useState<string | null>(null)
-  const searchParams = useSearchParams()
 
   // Save current track to localStorage for iOS PWA persistence
   useEffect(() => {
@@ -145,7 +143,10 @@ export default function MusicPage() {
   // If album is specified in URL (?album=...) select it and autoplay first track
   useEffect(() => {
     if (!albums.length) return
-    const albumParam = searchParams.get("album")
+    if (typeof window === "undefined") return
+
+    const params = new URLSearchParams(window.location.search)
+    const albumParam = params.get("album")
     if (!albumParam) return
 
     const match = albums.find(
@@ -157,7 +158,7 @@ export default function MusicPage() {
       setAutoplayAlbumId(match.id)
       window.scrollTo(0, 0)
     }
-  }, [albums, searchParams])
+  }, [albums])
 
   const getTrackWithOverride = (track: SpotifyTrack): TrackDisplay => {
     const override = overrides[track.id]
