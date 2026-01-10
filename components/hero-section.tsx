@@ -54,8 +54,8 @@ export default function HeroSection({ onPlay, artistImage, trackName = "LATEST T
             fontWeight: 700,
             letterSpacing: "0.65px",
             lineHeight: 1.05,
-            // Slight off-white to avoid brown tint over banner
-            color: "#f2ede6",
+            // Off-white with slight transparency so it softly blends into the banner
+            color: "rgba(242, 237, 230, 0.82)",
           }}
         >
           JON SPIRIT
