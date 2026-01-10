@@ -102,7 +102,7 @@ export default function Home() {
       <section id="about" className="w-full px-6 md:px-12 lg:px-16 py-20 lg:py-32">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-5xl md:text-6xl font-black mb-4 text-foreground tracking-tighter animate-fade-in-up">
-            JON SPIRIT // PROFILE
+            About Jon Spirit
           </h2>
           <p className="text-primary text-lg mb-16 font-semibold animate-fade-in-up stagger-2">
             Underground. Spectral. Gritty.
