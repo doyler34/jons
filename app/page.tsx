@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Navigation from "@/components/navigation"
 import HeroSection from "@/components/hero-section"
 import PlayerBar from "@/components/player-bar"
@@ -37,6 +38,7 @@ function formatFollowers(count: number): string {
 }
 
 export default function Home() {
+  const router = useRouter()
   const [spotifyData, setSpotifyData] = useState<SpotifyData | null>(null)
   const [currentTrack, setCurrentTrack] = useState<{
     title: string
@@ -72,8 +74,8 @@ export default function Home() {
   }
 
   const handlePlay = () => {
-    setShowPlayer(true)
-    setIsPlaying(true)
+    // Send user to music page and auto-open the Work Aholic album
+    router.push("/music?album=Work%20Aholic")
   }
 
   // Get first track name for the hero button

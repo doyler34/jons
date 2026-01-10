@@ -3,6 +3,7 @@ import Navigation from "@/components/navigation"
 import PlayerBar from "@/components/player-bar"
 import NewsletterForm from "@/components/newsletter-form"
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Play, Pause, Loader2, ExternalLink, Clock, Disc3, ChevronLeft } from "lucide-react"
 
 interface SpotifyTrack {
@@ -66,6 +67,8 @@ export default function MusicPage() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [loading, setLoading] = useState(true)
   const [overrides, setOverrides] = useState<Record<string, SongOverride>>({})
+  const [autoplayAlbumId, setAutoplayAlbumId] = useState<string | null>(null)
+  const searchParams = useSearchParams()
 
   // Save current track to localStorage for iOS PWA persistence
   useEffect(() => {
@@ -139,6 +142,23 @@ export default function MusicPage() {
     fetchData()
   }, [])
 
+  // If album is specified in URL (?album=...) select it and autoplay first track
+  useEffect(() => {
+    if (!albums.length) return
+    const albumParam = searchParams.get("album")
+    if (!albumParam) return
+
+    const match = albums.find(
+      (album) =>
+        album.id === albumParam || album.name.toLowerCase() === albumParam.toLowerCase(),
+    )
+    if (match) {
+      setSelectedAlbum(match)
+      setAutoplayAlbumId(match.id)
+      window.scrollTo(0, 0)
+    }
+  }, [albums, searchParams])
+
   const getTrackWithOverride = (track: SpotifyTrack): TrackDisplay => {
     const override = overrides[track.id]
     return {
@@ -159,6 +179,18 @@ export default function MusicPage() {
     setCurrentTrack(track)
     setIsPlaying(true)
   }
+
+  // Autoplay first track when an album is selected via click or URL param
+  useEffect(() => {
+    if (!selectedAlbum || autoplayAlbumId !== selectedAlbum.id) return
+    const albumTracks = selectedAlbum.tracks
+      .filter((track) => !overrides[track.id]?.hidden)
+      .map(getTrackWithOverride)
+    if (albumTracks.length > 0) {
+      playTrack(albumTracks[0])
+      setAutoplayAlbumId(null)
+    }
+  }, [selectedAlbum, autoplayAlbumId, overrides])
 
   if (loading) {
     return (
@@ -358,6 +390,7 @@ export default function MusicPage() {
                 key={album.id}
                 onClick={() => {
                   setSelectedAlbum(album)
+                  setAutoplayAlbumId(album.id)
                   window.scrollTo(0, 0)
                 }}
                 className="group cursor-pointer"
