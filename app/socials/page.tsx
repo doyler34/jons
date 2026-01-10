@@ -8,7 +8,7 @@ const socialLinks = [
     name: "Spotify",
     description: "Stream all tracks and playlists",
     icon: SpotifyLogo,
-    bgColor: "bg-[#0f0f0f] border border-white/10",
+    bgColor: "bg-gradient-to-br from-[#1DB954] to-[#12833b]",
     href: "https://open.spotify.com/artist/2JvA93ASY6Tq4bISN2eh6Z",
     external: true,
   },
@@ -16,7 +16,7 @@ const socialLinks = [
     name: "Apple Music",
     description: "Stream on Apple Music",
     icon: AppleMusicLogo,
-    bgColor: "bg-[#0f0f0f] border border-white/10",
+    bgColor: "bg-gradient-to-br from-[#FA243C] to-[#FA57A0]",
     href: "https://music.apple.com/artist/jonspirit",
     external: true,
   },
@@ -24,7 +24,7 @@ const socialLinks = [
     name: "Instagram",
     description: "Behind-the-scenes & updates",
     icon: InstagramLogo,
-    bgColor: "bg-[#0f0f0f] border border-white/10",
+    bgColor: "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400",
     href: "/instagram",
     external: false,
   },
@@ -32,7 +32,7 @@ const socialLinks = [
     name: "YouTube",
     description: "Music videos & visual content",
     icon: YouTubeLogo,
-    bgColor: "bg-[#0f0f0f] border border-white/10",
+    bgColor: "bg-gradient-to-br from-[#ff0000] to-[#c40000]",
     href: "https://www.youtube.com/@Jonspiritprime",
     external: true,
   },
@@ -40,7 +40,7 @@ const socialLinks = [
     name: "TikTok",
     description: "Short clips & viral content",
     icon: TikTokLogo,
-    bgColor: "bg-[#0f0f0f] border border-white/10",
+    bgColor: "bg-gradient-to-br from-[#00F2EA] via-[#FF0050] to-[#000000]",
     href: "https://www.tiktok.com/@jonspirit",
     external: true,
   },
@@ -48,7 +48,7 @@ const socialLinks = [
     name: "SoundCloud",
     description: "Exclusive & unreleased tracks",
     icon: SoundCloudLogo,
-    bgColor: "bg-[#0f0f0f] border border-white/10",
+    bgColor: "bg-gradient-to-br from-[#FF7E00] to-[#FF5500]",
     href: "https://soundcloud.com/jonspirit",
     external: true,
   },
@@ -81,7 +81,7 @@ export default function SocialsPage() {
                 </div>
               </div>
             )
-            const cardClass = `group rounded-xl p-4 md:p-8 ${social.bgColor} hover:shadow-lg hover:shadow-white/10 transition-all transform hover:scale-105 active:scale-95`
+            const cardClass = `group rounded-xl p-4 md:p-8 ${social.bgColor} text-white shadow-md shadow-black/25 border border-white/10 hover:shadow-lg hover:shadow-white/10 transition-all transform hover:scale-105 active:scale-95`
             
             return social.external ? (
               <a
