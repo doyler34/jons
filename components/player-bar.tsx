@@ -28,9 +28,10 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
       audioRef.current.preload = "auto"
       audioRef.current.crossOrigin = "anonymous"
       audioRef.current.defaultPlaybackRate = 1
-      // Helps avoid pitch warble on some mobile browsers (non-standard prop)
-      ;(audioRef.current as any).preservesPitch = true
-      audioRef.current.playsInline = true
+      // Helps avoid pitch warble on some mobile browsers (non-standard props)
+      const audioAny = audioRef.current as any
+      audioAny.preservesPitch = true
+      audioAny.playsInline = true
       
       // Add event listeners
       audioRef.current.addEventListener("timeupdate", () => {
