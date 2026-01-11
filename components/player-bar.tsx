@@ -28,9 +28,8 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
       audioRef.current.preload = "auto"
       audioRef.current.crossOrigin = "anonymous"
       audioRef.current.defaultPlaybackRate = 1
-      // Helps avoid pitch warble on some mobile browsers
-      // @ts-expect-error preservesPitch is not in the TS definition
-      audioRef.current.preservesPitch = true
+      // Helps avoid pitch warble on some mobile browsers (non-standard prop)
+      ;(audioRef.current as any).preservesPitch = true
       audioRef.current.playsInline = true
       
       // Add event listeners
