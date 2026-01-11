@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const API_KEY = process.env.MAILERLITE_API_KEY?.trim()
-    const GROUP_ID = process.env.MAILERLITE_GROUP_ID
+    const GROUP_ID = process.env.MAILERLITE_GROUP_ID || process.env.MAILERLITE_GROUPID || process.env.MAILERLITE_GROUP_ID_DEFAULT
 
     if (!API_KEY) {
       console.error("MAILERLITE_API_KEY is not configured")
@@ -35,6 +35,9 @@ export async function POST(request: NextRequest) {
 
     if (isNewApi) {
       // New MailerLite API (connect.mailerlite.com)
+      const payload: Record<string, unknown> = { email }
+      if (GROUP_ID) payload.groups = [GROUP_ID]
+
       response = await fetch("https://connect.mailerlite.com/api/subscribers", {
         method: "POST",
         headers: {
@@ -42,7 +45,7 @@ export async function POST(request: NextRequest) {
           "Accept": "application/json",
           "Authorization": `Bearer ${API_KEY}`,
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(payload),
       })
     } else {
       // Classic MailerLite API (api.mailerlite.com)
