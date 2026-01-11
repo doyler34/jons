@@ -1040,9 +1040,9 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[#0a0a0a] text-foreground">
       {/* Header */}
       <header className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold">Jon Spirit Admin</h1>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 flex-wrap">
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
               View Site
             </Link>
@@ -1053,11 +1053,11 @@ export default function AdminDashboard() {
         </div>
         
         {/* Tab Navigation */}
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-1 border-t border-border pt-2 -mb-[1px]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex gap-1 border-t border-border pt-2 -mb-[1px] overflow-x-auto pb-2">
             <button
               onClick={() => setActiveTab("music")}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors shrink-0 ${
                 activeTab === "music"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -1069,7 +1069,7 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab("newsletter")}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors shrink-0 ${
                 activeTab === "newsletter"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -1080,7 +1080,7 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab("subscribers")}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors shrink-0 ${
                 activeTab === "subscribers"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -1092,7 +1092,7 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab("events")}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors shrink-0 ${
                 activeTab === "events"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -1104,7 +1104,7 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab("settings")}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors shrink-0 ${
                 activeTab === "settings"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -1115,7 +1115,7 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab("analytics")}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors shrink-0 ${
                 activeTab === "analytics"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -1129,7 +1129,7 @@ export default function AdminDashboard() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         
         {/* MUSIC TAB */}
         {activeTab === "music" && (
@@ -1257,10 +1257,10 @@ export default function AdminDashboard() {
                 <div className="divide-y divide-border">
                   {/* Show manual songs if filter is "manual" or "all" */}
                   {(selectedFilter === "manual" || selectedFilter === "all") && filteredManualSongs.map((song) => (
-                    <div
-                      key={song.id}
-                      className="flex items-center gap-4 p-4 hover:bg-muted/20 transition-colors"
-                    >
+                  <div
+                    key={song.id}
+                    className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 hover:bg-muted/20 transition-colors"
+                  >
                       <div className="relative">
                         <img
                           src={song.cover_url || "/placeholder.svg"}
@@ -1279,7 +1279,7 @@ export default function AdminDashboard() {
                         </span>
                       </div>
                       {song.audio_url && (
-                        <div className="flex gap-2 flex-shrink-0">
+                        <div className="flex flex-wrap gap-2 w-full sm:w-auto sm:justify-end">
                           <a
                             href={song.audio_url}
                             target="_blank"
@@ -1304,7 +1304,7 @@ export default function AdminDashboard() {
                     return (
                       <div
                         key={track.id}
-                        className={`flex items-center gap-4 p-4 hover:bg-muted/20 transition-colors ${isHidden ? "opacity-50" : ""}`}
+                        className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 hover:bg-muted/20 transition-colors ${isHidden ? "opacity-50" : ""}`}
                       >
                         <div className="relative">
                           <img
@@ -1351,7 +1351,7 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        <div className="flex gap-2 flex-shrink-0">
+                        <div className="flex flex-wrap gap-2 w-full sm:w-auto sm:justify-end">
                           {/* Visibility Toggle */}
                           <button
                             onClick={() => toggleVisibility(track.id, isHidden)}
@@ -1956,7 +1956,7 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              <div className="flex items-center gap-4 pt-2">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-2">
                 <Button
                   type="submit"
                   disabled={sending || uploading || !subject.trim() || (newsletterType === "poster" ? !posterUrl : !stripHtml(content))}
@@ -2223,7 +2223,7 @@ export default function AdminDashboard() {
                         className="bg-input border-border"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium mb-2">Venue *</label>
                         <Input
@@ -2245,7 +2245,7 @@ export default function AdminDashboard() {
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium mb-2">Date *</label>
                         <Input
