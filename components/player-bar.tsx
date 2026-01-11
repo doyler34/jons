@@ -24,7 +24,14 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio()
-      audioRef.current.volume = 0.5
+      audioRef.current.volume = 1
+      audioRef.current.preload = "auto"
+      audioRef.current.crossOrigin = "anonymous"
+      audioRef.current.defaultPlaybackRate = 1
+      // Helps avoid pitch warble on some mobile browsers
+      // @ts-expect-error preservesPitch is not in the TS definition
+      audioRef.current.preservesPitch = true
+      audioRef.current.playsInline = true
       
       // Add event listeners
       audioRef.current.addEventListener("timeupdate", () => {
@@ -35,6 +42,11 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
       })
       audioRef.current.addEventListener("ended", () => {
         setIsPlaying(false)
+      })
+      audioRef.current.addEventListener("canplaythrough", () => {
+        if (audioRef.current && isPlaying) {
+          audioRef.current.play().catch(() => setIsPlaying(false))
+        }
       })
     }
     
@@ -48,15 +60,19 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
 
   // Handle track changes
   useEffect(() => {
-    if (audioRef.current && currentTrack.previewUrl) {
-      if (audioRef.current.src !== currentTrack.previewUrl) {
-        audioRef.current.src = currentTrack.previewUrl
-        audioRef.current.load()
-        setCurrentTime(0)
-        setDuration(0)
-      }
+    if (!audioRef.current) return
+    if (!currentTrack.previewUrl) {
+      audioRef.current.pause()
+      setIsPlaying(false)
+      return
     }
-  }, [currentTrack.previewUrl])
+    if (audioRef.current.src !== currentTrack.previewUrl) {
+      audioRef.current.src = currentTrack.previewUrl
+      audioRef.current.load()
+      setCurrentTime(0)
+      setDuration(0)
+    }
+  }, [currentTrack.previewUrl, setIsPlaying])
 
   // Handle play/pause
   useEffect(() => {
