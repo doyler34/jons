@@ -419,6 +419,11 @@ const sendWithMailerLite = async (
   }
 
   // Classic MailerLite API
+  const GROUP_ID = process.env.MAILERLITE_GROUP_ID || process.env.MAILERLITE_GROUPID || process.env.MAILERLITE_GROUP_ID_DEFAULT
+  if (!GROUP_ID) {
+    return { ok: false, error: "MAILERLITE_GROUP_ID not set. Add a default group/segment ID in env." }
+  }
+
   const campaignResponse = await fetch("https://api.mailerlite.com/api/v2/campaigns", {
     method: "POST",
     headers: {
@@ -431,6 +436,7 @@ const sendWithMailerLite = async (
       type: "regular",
       from: process.env.MAILERLITE_FROM_EMAIL || "newsletter@jonspirit.com",
       from_name: "Jon Spirit",
+      groups: [GROUP_ID],
     }),
   })
 
