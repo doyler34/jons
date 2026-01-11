@@ -311,7 +311,8 @@ const sendWithMailerLite = async (
   mode: "send" | "draft" | "schedule" = "send",
   scheduledAt?: string
 ) => {
-  const isNewApi = API_KEY.startsWith("eyJ")
+  // Force classic API to avoid Advanced plan requirement even if a JWT key is provided
+  const isNewApi = false
 
   if (isNewApi) {
     const FROM_EMAIL = process.env.MAILERLITE_FROM_EMAIL
