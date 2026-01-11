@@ -299,6 +299,26 @@ export default function AdminDashboard() {
     }
   }
 
+  // Force a file download without opening a new tab
+  const downloadFile = async (url: string, fallbackName?: string) => {
+    try {
+      const response = await fetch(url)
+      if (!response.ok) throw new Error("Download failed")
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = objectUrl
+      link.download = fallbackName || url.split("/").pop() || "file"
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      // Fallback to same-tab navigation if fetch fails
+      window.open(url, "_self")
+    }
+  }
+
   const toggleVisibility = async (spotifyId: string, currentHidden: boolean) => {
     try {
       const res = await fetch("/api/songs/overrides", {
@@ -1280,14 +1300,14 @@ export default function AdminDashboard() {
                       </div>
                       {song.audio_url && (
                         <div className="flex flex-wrap gap-2 w-full sm:w-auto sm:justify-end">
-                          <a
-                            href={song.audio_url}
-                            download
+                          <button
+                            type="button"
+                            onClick={() => downloadFile(song.audio_url || "", `${song.title || "song"}.mp3`)}
                             className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
                           >
                             <Download size={14} />
                             Download
-                          </a>
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1396,15 +1416,15 @@ export default function AdminDashboard() {
                           </div>
 
                           {hasAudio && (
-                            <a
-                              href={override.audio_url || undefined}
-                              download
+                            <button
+                              type="button"
+                              onClick={() => downloadFile(override.audio_url || "", `${track.name || "track"}.mp3`)}
                               className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
                               title="Download custom audio"
                             >
                               <Download size={14} />
                               Download
-                            </a>
+                            </button>
                           )}
 
                           <div className="relative">
