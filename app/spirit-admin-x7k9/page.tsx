@@ -299,22 +299,19 @@ export default function AdminDashboard() {
     }
   }
 
-  // Force a file download without opening a new tab
-  const downloadFile = async (url: string, fallbackName?: string) => {
+  // Force a file download without opening a new tab, preserving original file
+  const downloadFile = (url: string, fallbackName?: string) => {
     try {
-      const response = await fetch(url)
-      if (!response.ok) throw new Error("Download failed")
-      const blob = await response.blob()
-      const objectUrl = URL.createObjectURL(blob)
       const link = document.createElement("a")
-      link.href = objectUrl
+      link.href = url
       link.download = fallbackName || url.split("/").pop() || "file"
+      link.target = "_self"
+      link.rel = "noopener"
       document.body.appendChild(link)
       link.click()
       link.remove()
-      URL.revokeObjectURL(objectUrl)
     } catch {
-      // Fallback to same-tab navigation if fetch fails
+      // Fallback to same-tab navigation if anchor click fails
       window.open(url, "_self")
     }
   }
