@@ -1282,8 +1282,7 @@ export default function AdminDashboard() {
                         <div className="flex flex-wrap gap-2 w-full sm:w-auto sm:justify-end">
                           <a
                             href={song.audio_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            download
                             className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
                           >
                             <Download size={14} />
@@ -1399,8 +1398,7 @@ export default function AdminDashboard() {
                           {hasAudio && (
                             <a
                               href={override.audio_url || undefined}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              download
                               className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
                               title="Download custom audio"
                             >
