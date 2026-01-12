@@ -517,7 +517,14 @@ const isNewApi = false
     }
   }
 
+  // Ensure we have a target group, and import all subscribers into it (best-effort)
   const targetGroupId = await ensureClassicGroup()
+  if (targetGroupId) {
+    const subs = await fetchAllClassicSubscribers()
+    if (subs.length > 0) {
+      await importToGroup(targetGroupId, subs as Array<{ email: string }>)
+    }
+  }
   if (!targetGroupId) {
     return { ok: false, error: "No MailerLite group available or creation failed" }
   }
