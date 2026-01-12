@@ -11,6 +11,7 @@ export async function GET() {
   }
 
   const API_KEY = process.env.MAILERLITE_API_KEY?.trim()
+  const GROUP_ID = (process.env.MAILERLITE_GROUP_ID || process.env.MAILERLITE_GROUPID || process.env.MAILERLITE_GROUP_ID_DEFAULT || "").trim() || undefined
 
   if (!API_KEY) {
     return NextResponse.json({ 
@@ -26,26 +27,25 @@ export async function GET() {
     
     let response: Response
 
-    if (isNewApi) {
-      // New MailerLite API - always fetch all subscribers
-      const url = "https://connect.mailerlite.com/api/subscribers?limit=50&sort=-created_at"
+    const baseHeadersNew = {
+      "Authorization": `Bearer ${API_KEY}`,
+      "Accept": "application/json",
+    }
+    const baseHeadersClassic = {
+      "X-MailerLite-ApiKey": API_KEY,
+      "Accept": "application/json",
+    }
 
-      response = await fetch(url, {
-        headers: {
-          "Authorization": `Bearer ${API_KEY}`,
-          "Accept": "application/json",
-        },
-      })
+    if (isNewApi) {
+      // New MailerLite API - fetch all subscribers and attach to group if provided
+      const url = "https://connect.mailerlite.com/api/subscribers?limit=100&sort=-created_at"
+
+      response = await fetch(url, { headers: baseHeadersNew })
     } else {
       // Classic MailerLite API
-      const url = "https://api.mailerlite.com/api/v2/subscribers?limit=50"
+      const url = "https://api.mailerlite.com/api/v2/subscribers?limit=1000"
 
-      response = await fetch(url, {
-        headers: {
-          "X-MailerLite-ApiKey": API_KEY,
-          "Accept": "application/json",
-        },
-      })
+      response = await fetch(url, { headers: baseHeadersClassic })
     }
 
     if (!response.ok) {
@@ -64,6 +64,40 @@ export async function GET() {
       status: sub.status || sub.type || "active",
       created_at: sub.created_at || sub.date_created || new Date().toISOString(),
     }))
+
+    // If a group is provided, try to ensure all subscribers are in it (best-effort, non-blocking)
+    if (GROUP_ID && subscribers.length > 0) {
+      try {
+        if (isNewApi) {
+          // New API: use bulk upsert or per-subscriber group attach
+          await fetch(`https://connect.mailerlite.com/api/subscribers/import`, {
+            method: "POST",
+            headers: {
+              ...baseHeadersNew,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              subscribers: subscribers.map((s) => ({ email: s.email, groups: [GROUP_ID] })),
+              auto_confirm: true,
+            }),
+          })
+        } else {
+          // Classic API: bulk import into group
+          await fetch(`https://api.mailerlite.com/api/v2/groups/${GROUP_ID}/subscribers/import`, {
+            method: "POST",
+            headers: {
+              ...baseHeadersClassic,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              subscribers: subscribers.map((s) => ({ email: s.email })),
+            }),
+          })
+        }
+      } catch (err) {
+        console.error("Failed to attach subscribers to group:", err)
+      }
+    }
 
     return NextResponse.json({
       subscribers,
