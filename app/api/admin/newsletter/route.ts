@@ -311,8 +311,8 @@ const sendWithMailerLite = async (
   mode: "send" | "draft" | "schedule" = "send",
   scheduledAt?: string
 ) => {
-  // Force classic API to avoid Advanced plan requirement even if a JWT key is provided
-  const isNewApi = false
+// Force classic API to avoid Advanced plan requirement even if a JWT key is provided
+const isNewApi = false
 
   if (isNewApi) {
     const FROM_EMAIL = process.env.MAILERLITE_FROM_EMAIL
@@ -421,6 +421,77 @@ const sendWithMailerLite = async (
   // Classic MailerLite API
   const GROUP_ID = process.env.MAILERLITE_GROUP_ID || process.env.MAILERLITE_GROUPID || process.env.MAILERLITE_GROUP_ID_DEFAULT
 
+  // Helper: fetch all subscribers (classic)
+  const fetchAllClassicSubscribers = async () => {
+    try {
+      const resp = await fetch("https://api.mailerlite.com/api/v2/subscribers?limit=1000", {
+        headers: {
+          "X-MailerLite-ApiKey": API_KEY,
+          "Accept": "application/json",
+        },
+      })
+      if (!resp.ok) return []
+      const data = await resp.json()
+      return Array.isArray(data) ? data : []
+    } catch (err) {
+      console.error("Failed to fetch classic subscribers:", err)
+      return []
+    }
+  }
+
+  // Helper: ensure a group exists; if none provided, create one and populate with all subscribers
+  const ensureClassicGroup = async (): Promise<string | null> => {
+    if (GROUP_ID) return GROUP_ID
+
+    try {
+      // Create a new group
+      const createResp = await fetch("https://api.mailerlite.com/api/v2/groups", {
+        method: "POST",
+        headers: {
+          "X-MailerLite-ApiKey": API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: `All Subscribers ${new Date().toISOString()}` }),
+      })
+
+      if (!createResp.ok) {
+        const err = await createResp.text()
+        console.error("Failed to create group:", err)
+        return null
+      }
+
+      const created = await createResp.json()
+      const newGroupId = created?.id
+      if (!newGroupId) return null
+
+      // Attach all subscribers to the new group (best-effort)
+      const subs = await fetchAllClassicSubscribers()
+      if (subs.length > 0) {
+        try {
+          await fetch(`https://api.mailerlite.com/api/v2/groups/${newGroupId}/subscribers/import`, {
+            method: "POST",
+            headers: {
+              "X-MailerLite-ApiKey": API_KEY,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              subscribers: subs.map((s: { email: string }) => ({ email: s.email })),
+            }),
+          })
+        } catch (err) {
+          console.error("Failed to import subscribers to new group:", err)
+        }
+      }
+
+      return newGroupId
+    } catch (err) {
+      console.error("ensureClassicGroup error:", err)
+      return null
+    }
+  }
+
+  const targetGroupId = await ensureClassicGroup()
+
   const campaignResponse = await fetch("https://api.mailerlite.com/api/v2/campaigns", {
     method: "POST",
     headers: {
@@ -433,7 +504,7 @@ const sendWithMailerLite = async (
       type: "regular",
       from: process.env.MAILERLITE_FROM_EMAIL || "newsletter@jonspirit.com",
       from_name: "Jon Spirit",
-      ...(GROUP_ID ? { groups: [GROUP_ID] } : {}),
+      ...(targetGroupId ? { groups: [targetGroupId] } : {}),
     }),
   })
 
