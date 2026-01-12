@@ -574,6 +574,7 @@ const isNewApi = false
     method: "PUT",
     headers: {
       "X-MailerLite-ApiKey": API_KEY,
+      "Accept": "application/json",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -584,7 +585,13 @@ const isNewApi = false
   if (!contentResp.ok) {
     const text = await contentResp.text()
     console.error("Campaign content error:", text)
-    return { ok: false, error: "Failed to set campaign content" }
+    let parsed: any
+    try {
+      parsed = JSON.parse(text)
+    } catch {
+      parsed = { message: text }
+    }
+    return { ok: false, error: parsed.error?.message || parsed.message || "Failed to set campaign content" }
   }
 
   // Classic MailerLite API:
