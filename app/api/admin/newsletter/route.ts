@@ -564,10 +564,10 @@ const isNewApi = false
   }
 
   const campaign = await campaignResponse.json()
-  const campaignId = campaign.id
+  const campaignId = campaign.id || campaign.data?.id
 
   if (!campaignId) {
-    return { ok: false, error: "Failed to get campaign ID" }
+    return { ok: false, error: "Failed to get campaign ID from MailerLite response" }
   }
 
   const contentResp = await fetch(`https://api.mailerlite.com/api/v2/campaigns/${campaignId}/content`, {
@@ -584,14 +584,18 @@ const isNewApi = false
   })
   if (!contentResp.ok) {
     const text = await contentResp.text()
-    console.error("Campaign content error:", text)
+    console.error("Campaign content error:", text, "status:", contentResp.status)
     let parsed: any
     try {
       parsed = JSON.parse(text)
     } catch {
       parsed = { message: text }
     }
-    return { ok: false, error: parsed.error?.message || parsed.message || "Failed to set campaign content" }
+    return {
+      ok: false,
+      error: parsed.error?.message || parsed.message || "Failed to set campaign content",
+      details: { status: contentResp.status, campaignId },
+    }
   }
 
   // Classic MailerLite API:
