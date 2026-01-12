@@ -529,6 +529,12 @@ const isNewApi = false
     return { ok: false, error: "No MailerLite group available or creation failed" }
   }
 
+  // Require verified sender email
+  const FROM_EMAIL = process.env.MAILERLITE_FROM_EMAIL?.trim()
+  if (!FROM_EMAIL) {
+    return { ok: false, error: "MAILERLITE_FROM_EMAIL not set. Add a verified sender email." }
+  }
+
   const campaignResponse = await fetch("https://api.mailerlite.com/api/v2/campaigns", {
     method: "POST",
     headers: {
@@ -539,16 +545,22 @@ const isNewApi = false
       subject: subject,
       name: `Newsletter: ${subject}`,
       type: "regular",
-      from: process.env.MAILERLITE_FROM_EMAIL || "newsletter@jonspirit.com",
+      from: FROM_EMAIL,
       from_name: "Jon Spirit",
       ...(targetGroupId ? { groups: [targetGroupId] } : {}),
     }),
   })
 
   if (!campaignResponse.ok) {
-    const error = await campaignResponse.json()
-    console.error("Campaign creation error:", error)
-    return { ok: false, error: error.error?.message || "Failed to create campaign" }
+    const text = await campaignResponse.text()
+    console.error("Campaign creation error:", text)
+    let parsed: any
+    try {
+      parsed = JSON.parse(text)
+    } catch {
+      parsed = { message: text }
+    }
+    return { ok: false, error: parsed.error?.message || parsed.message || "Failed to create campaign" }
   }
 
   const campaign = await campaignResponse.json()
@@ -558,7 +570,7 @@ const isNewApi = false
     return { ok: false, error: "Failed to get campaign ID" }
   }
 
-  await fetch(`https://api.mailerlite.com/api/v2/campaigns/${campaignId}/content`, {
+  const contentResp = await fetch(`https://api.mailerlite.com/api/v2/campaigns/${campaignId}/content`, {
     method: "PUT",
     headers: {
       "X-MailerLite-ApiKey": API_KEY,
@@ -569,6 +581,11 @@ const isNewApi = false
       plain: `${subject} - View this email in your browser to see the full content.`,
     }),
   })
+  if (!contentResp.ok) {
+    const text = await contentResp.text()
+    console.error("Campaign content error:", text)
+    return { ok: false, error: "Failed to set campaign content" }
+  }
 
   // Classic MailerLite API:
   // - mode "draft": campaign with content is saved as a draft
@@ -586,9 +603,15 @@ const isNewApi = false
   })
 
   if (!sendResponse.ok) {
-    const error = await sendResponse.json()
-    console.error("Campaign send error:", error)
-    return { ok: false, error: error.error?.message || "Campaign created but failed to send", campaignId }
+    const text = await sendResponse.text()
+    console.error("Campaign send error:", text)
+    let parsed: any
+    try {
+      parsed = JSON.parse(text)
+    } catch {
+      parsed = { message: text }
+    }
+    return { ok: false, error: parsed.error?.message || parsed.message || "Campaign created but failed to send", campaignId }
   }
 
   return { ok: true, campaignId }
