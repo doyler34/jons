@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
     const API_KEY = process.env.MAILERLITE_API_KEY?.trim()
     const GROUP_ID = (process.env.MAILERLITE_GROUP_ID || process.env.MAILERLITE_GROUPID || process.env.MAILERLITE_GROUP_ID_DEFAULT || "").trim() || undefined
     const FORCE_CLASSIC = process.env.MAILERLITE_FORCE_CLASSIC === "true"
+    const USE_NEW_API = process.env.MAILERLITE_USE_NEW === "true"
 
     if (!API_KEY) {
       console.error("MAILERLITE_API_KEY is not configured")
@@ -28,8 +29,8 @@ export async function POST(request: NextRequest) {
     console.log("API Key starts with:", API_KEY.substring(0, 5))
     console.log("API Key ends with:", API_KEY.substring(API_KEY.length - 5))
 
-    // Detect API type: new API keys start with "eyJ" (JWT), classic keys don't
-    const isNewApi = !FORCE_CLASSIC && API_KEY.startsWith("eyJ")
+    // Default to CLASSIC for stability unless explicitly opted in
+    const isNewApi = !FORCE_CLASSIC && USE_NEW_API && API_KEY.startsWith("eyJ")
     console.log("Using API type:", isNewApi ? "NEW (JWT)" : "CLASSIC")
     
     let response: Response
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
       
       console.error("MailerLite error:", data)
       return NextResponse.json(
-        { error: data.message || "Failed to subscribe" },
+        { error: data.message || data.error || "Failed to subscribe" },
         { status: response.status }
       )
     }
