@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const API_KEY = process.env.MAILERLITE_API_KEY?.trim()
-    const GROUP_ID = process.env.MAILERLITE_GROUP_ID || process.env.MAILERLITE_GROUPID || process.env.MAILERLITE_GROUP_ID_DEFAULT
+    const GROUP_ID = (process.env.MAILERLITE_GROUP_ID || process.env.MAILERLITE_GROUPID || process.env.MAILERLITE_GROUP_ID_DEFAULT || "").trim() || undefined
 
     if (!API_KEY) {
       console.error("MAILERLITE_API_KEY is not configured")
@@ -77,6 +77,23 @@ export async function POST(request: NextRequest) {
         { error: data.message || "Failed to subscribe" },
         { status: response.status }
       )
+    }
+
+    // Extra assurance for JWT API: attempt to add subscriber to group after creation
+    if (isNewApi && GROUP_ID && data?.data?.id) {
+      try {
+        await fetch(`https://connect.mailerlite.com/api/subscribers/${data.data.id}/groups`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": `Bearer ${API_KEY}`,
+          },
+          body: JSON.stringify({ groups: [GROUP_ID] }),
+        })
+      } catch (err) {
+        console.error("Failed to attach subscriber to group (new API):", err)
+      }
     }
 
     return NextResponse.json({ success: true, message: "Successfully subscribed!" })
