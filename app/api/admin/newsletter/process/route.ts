@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { sql } from "@vercel/postgres"
+import { verifyAdminSessionToken } from "@/lib/admin-session"
 
 const STATUS_SCHEDULED = "scheduled"
 const STATUS_SENDING = "sending"
@@ -378,9 +379,11 @@ export async function POST(request: NextRequest) {
       ? authHeader.slice("Bearer ".length)
       : null
 
-  const allowed =
-    !!session?.value ||
-    (process.env.CRON_SECRET && bearerToken === process.env.CRON_SECRET)
+  const secret = process.env.ADMIN_PASSWORD
+  const allowedByCookie = !!secret && verifyAdminSessionToken(session?.value, secret)
+  const allowedByCron = !!process.env.CRON_SECRET && bearerToken === process.env.CRON_SECRET
+
+  const allowed = allowedByCookie || allowedByCron
 
   if (!allowed) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
