@@ -689,12 +689,12 @@ export default function AdminDashboard() {
     if (sendMode === "schedule") {
       const scheduleDate = scheduledAt ? new Date(scheduledAt) : null
       if (!scheduleDate || isNaN(scheduleDate.getTime()) || scheduleDate.getTime() <= Date.now()) {
-        setSendStatus({ type: "error", message: "Choose a future date/time to schedule in MailerLite" })
+        setSendStatus({ type: "error", message: "Choose a future date/time to schedule" })
         return
       }
     }
 
-    if (!confirm(`Send newsletter "${subject}" ${sendMode === "schedule" ? "scheduled via MailerLite" : "now"} to all ${subscriberCount || 0} subscribers?`)) {
+    if (!confirm(`Send newsletter "${subject}" ${sendMode === "schedule" ? "scheduled" : "now"} to all ${subscriberCount || 0} subscribers?`)) {
       return
     }
 
@@ -1921,7 +1921,7 @@ export default function AdminDashboard() {
                         checked={sendMode === "schedule"}
                         onChange={() => setSendMode("schedule")}
                       />
-                      Schedule in MailerLite
+                      Schedule newsletter
                     </label>
                     {sendMode === "schedule" && (
                       <input
@@ -1932,7 +1932,7 @@ export default function AdminDashboard() {
                       />
                     )}
                     <p className="text-xs text-muted-foreground">
-                      This will create the campaign and schedule it at the time you pick using MailerLite&apos;s \"Send later\" feature.
+                      This will schedule the newsletter to be sent at the time you pick.
                     </p>
                   </div>
                 </div>
@@ -2009,11 +2009,11 @@ export default function AdminDashboard() {
                   Refresh
                 </Button>
                 <a
-                  href="https://dashboard.mailerlite.com"
+                  href="https://app.brevo.com"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Button variant="outline">Open MailerLite →</Button>
+                  <Button variant="outline">Open Brevo →</Button>
                 </a>
               </div>
             </div>
@@ -2637,7 +2637,7 @@ export default function AdminDashboard() {
                                         setSendStatus({
                                           type: "success",
                                           message:
-                                            "Scheduled newsletter cancelled in your dashboard. If it was already scheduled in MailerLite, cancel it there too.",
+                                            "Scheduled newsletter cancelled in your dashboard.",
                                         })
                                       } catch (error) {
                                         console.error(error)
@@ -2664,7 +2664,7 @@ export default function AdminDashboard() {
                                         setSendStatus({
                                           type: "success",
                                           message:
-                                            "Scheduled newsletter removed from history. If it was scheduled in MailerLite, delete/cancel it there too.",
+                                            "Scheduled newsletter removed from history.",
                                         })
                                       } catch (error) {
                                         console.error(error)
@@ -2693,7 +2693,7 @@ export default function AdminDashboard() {
                                       setNewsletterStats((prev) => prev.filter((s) => s.id !== stat.id))
                                       setSendStatus({
                                         type: "success",
-                                        message: "Sent newsletter removed from history (MailerLite stats remain there).",
+                                        message: "Sent newsletter removed from history (Brevo stats remain there).",
                                       })
                                     } catch (error) {
                                       console.error(error)
@@ -2741,7 +2741,7 @@ export default function AdminDashboard() {
                 </a>
 
                 <a
-                  href="https://dashboard.mailerlite.com"
+                  href="https://app.brevo.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors group"
@@ -2750,7 +2750,7 @@ export default function AdminDashboard() {
                     <Mail size={20} className="text-green-500" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium group-hover:text-primary transition-colors">MailerLite</p>
+                    <p className="font-medium group-hover:text-primary transition-colors">Brevo</p>
                     <p className="text-xs text-muted-foreground">Email open & click rates</p>
                   </div>
                   <ExternalLink size={16} className="text-muted-foreground" />

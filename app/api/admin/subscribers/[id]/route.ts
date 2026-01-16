@@ -14,43 +14,39 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const API_KEY = process.env.MAILERLITE_API_KEY?.trim()
+  const API_KEY = process.env.BREVO_API_KEY?.trim()
 
   if (!API_KEY) {
-    return NextResponse.json({ error: "MailerLite not configured" }, { status: 500 })
+    return NextResponse.json({ error: "Brevo not configured" }, { status: 500 })
   }
 
   try {
     const { id } = await params
     
-    // Detect API type
-    const isNewApi = API_KEY.startsWith("eyJ")
-    
-    let response: Response
+    // Brevo uses numeric IDs, but we might receive email as ID
+    // Try to delete by ID first, then by email if ID fails
+    let response = await fetch(`https://api.brevo.com/v3/contacts/${id}`, {
+      method: "DELETE",
+      headers: {
+        "api-key": API_KEY,
+        "Accept": "application/json",
+      },
+    })
 
-    if (isNewApi) {
-      // New MailerLite API
-      response = await fetch(`https://connect.mailerlite.com/api/subscribers/${id}`, {
+    // If deletion by ID fails, try by email
+    if (!response.ok && id.includes("@")) {
+      response = await fetch(`https://api.brevo.com/v3/contacts/${id}`, {
         method: "DELETE",
         headers: {
-          "Authorization": `Bearer ${API_KEY}`,
-          "Accept": "application/json",
-        },
-      })
-    } else {
-      // Classic MailerLite API - delete by email or ID
-      response = await fetch(`https://api.mailerlite.com/api/v2/subscribers/${id}`, {
-        method: "DELETE",
-        headers: {
-          "X-MailerLite-ApiKey": API_KEY,
+          "api-key": API_KEY,
           "Accept": "application/json",
         },
       })
     }
 
-    if (!response.ok && response.status !== 204) {
+    if (!response.ok && response.status !== 404) {
       const errorText = await response.text()
-      console.error("MailerLite delete error:", errorText)
+      console.error("Brevo delete error:", errorText)
       return NextResponse.json({ error: "Failed to delete subscriber" }, { status: 500 })
     }
 
@@ -60,4 +56,3 @@ export async function DELETE(
     return NextResponse.json({ error: "Failed to delete subscriber" }, { status: 500 })
   }
 }
-

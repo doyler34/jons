@@ -81,31 +81,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Only scheduled newsletters can be cancelled" }, { status: 400 })
   }
 
-  const API_KEY = process.env.MAILERLITE_API_KEY?.trim() || ""
-  const isNewApi = API_KEY.startsWith("eyJ")
-
-  // If we have a MailerLite campaign id and new API key, try to cancel in MailerLite too
-  if (isNewApi && row.campaign_id) {
-    try {
-      const mlRes = await fetch(`https://connect.mailerlite.com/api/campaigns/${row.campaign_id}/cancel`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${API_KEY}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      })
-
-      if (!mlRes.ok) {
-        const text = await mlRes.text()
-        console.error("MailerLite cancel error:", text)
-        return NextResponse.json({ error: "Failed to cancel in MailerLite" }, { status: 400 })
-      }
-    } catch (error) {
-      console.error("MailerLite cancel exception:", error)
-      return NextResponse.json({ error: "Failed to cancel in MailerLite" }, { status: 400 })
-    }
-  }
+  // Note: Brevo transactional emails sent immediately can't be cancelled
+  // Only scheduled ones in our DB can be cancelled
+  // If the campaign was actually scheduled in Brevo (which requires their campaigns API),
+  // you would need to cancel it there, but for now we'll just update our DB
 
   await sql`
     UPDATE newsletter_sends
@@ -141,30 +120,9 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
 
   const campaignId = (existing.rows[0]?.campaign_id as string | null) ?? null
 
-  const API_KEY = process.env.MAILERLITE_API_KEY?.trim() || ""
-  const isNewApi = API_KEY.startsWith("eyJ")
-
-  // If we have a MailerLite campaign id and new API key, attempt to delete there too
-  if (isNewApi && campaignId) {
-    try {
-      const mlRes = await fetch(`https://connect.mailerlite.com/api/campaigns/${campaignId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${API_KEY}`,
-          Accept: "application/json",
-        },
-      })
-
-      if (!mlRes.ok && mlRes.status !== 404) {
-        const text = await mlRes.text()
-        console.error("MailerLite delete error:", text)
-        return NextResponse.json({ error: "Failed to delete in MailerLite" }, { status: 400 })
-      }
-    } catch (error) {
-      console.error("MailerLite delete exception:", error)
-      return NextResponse.json({ error: "Failed to delete in MailerLite" }, { status: 400 })
-    }
-  }
+  // Note: Brevo transactional emails can't be deleted after sending
+  // If using Brevo's campaigns API, you could delete campaigns there
+  // For now, we'll just remove from our database
 
   await sql`
     DELETE FROM newsletter_events
@@ -183,5 +141,3 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
 
   return NextResponse.json({ success: true })
 }
-
-

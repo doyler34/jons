@@ -11,16 +11,14 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const API_KEY = process.env.MAILERLITE_API_KEY?.trim()
+  const API_KEY = process.env.BREVO_API_KEY?.trim()
+  const LIST_ID = process.env.BREVO_LIST_ID?.trim()
 
   if (!API_KEY) {
-    return NextResponse.json({ error: "MailerLite not configured" }, { status: 500 })
+    return NextResponse.json({ error: "Brevo not configured" }, { status: 500 })
   }
 
   try {
-    // Detect API type
-    const isNewApi = API_KEY.startsWith("eyJ")
-    
     let allSubscribers: Array<{
       id: string
       email: string
@@ -28,58 +26,77 @@ export async function GET() {
       created_at: string
     }> = []
 
-    if (isNewApi) {
-      // New MailerLite API - fetch all pages
-      let cursor: string | null = null
+    // Fetch all contacts from the list or all contacts
+    if (LIST_ID) {
+      let offset = 0
+      const limit = 50
       let hasMore = true
 
       while (hasMore) {
-        const apiUrl: string = cursor 
-          ? `https://connect.mailerlite.com/api/subscribers?limit=100&cursor=${cursor}`
-          : "https://connect.mailerlite.com/api/subscribers?limit=100"
-
-        const response = await fetch(apiUrl, {
-          headers: {
-            "Authorization": `Bearer ${API_KEY}`,
-            "Accept": "application/json",
-          },
-        })
+        const response = await fetch(
+          `https://api.brevo.com/v3/contacts/lists/${LIST_ID}/contacts?limit=${limit}&offset=${offset}`,
+          {
+            headers: {
+              "api-key": API_KEY,
+              "Accept": "application/json",
+            },
+          }
+        )
 
         if (!response.ok) {
           break
         }
 
         const data = await response.json()
-        const subscribers = (data.data || []).map((sub: { id: string; email: string; status?: string; created_at?: string }) => ({
-          id: sub.id,
-          email: sub.email,
-          status: sub.status || "active",
-          created_at: sub.created_at || new Date().toISOString(),
+        const contacts = data.contacts || []
+        
+        const subscribers = contacts.map((contact: { id: number; email: string; createdAt: string; attributes?: Record<string, unknown> }) => ({
+          id: String(contact.id),
+          email: contact.email,
+          status: contact.attributes?.STATUS || "active",
+          created_at: contact.createdAt || new Date().toISOString(),
         }))
 
         allSubscribers = [...allSubscribers, ...subscribers]
-
-        // Check for next page
-        cursor = data.meta?.next_cursor
-        hasMore = !!cursor && subscribers.length > 0
+        
+        hasMore = contacts.length === limit
+        offset += limit
       }
     } else {
-      // Classic MailerLite API
-      const response = await fetch("https://api.mailerlite.com/api/v2/subscribers?limit=1000", {
-        headers: {
-          "X-MailerLite-ApiKey": API_KEY,
-          "Accept": "application/json",
-        },
-      })
+      // Fetch all contacts
+      let offset = 0
+      const limit = 50
+      let hasMore = true
 
-      if (response.ok) {
+      while (hasMore) {
+        const response = await fetch(
+          `https://api.brevo.com/v3/contacts?limit=${limit}&offset=${offset}`,
+          {
+            headers: {
+              "api-key": API_KEY,
+              "Accept": "application/json",
+            },
+          }
+        )
+
+        if (!response.ok) {
+          break
+        }
+
         const data = await response.json()
-        allSubscribers = (Array.isArray(data) ? data : []).map((sub: { id: string; email: string; type?: string; date_created?: string }) => ({
-          id: sub.id,
-          email: sub.email,
-          status: sub.type || "active",
-          created_at: sub.date_created || new Date().toISOString(),
+        const contacts = data.contacts || []
+        
+        const subscribers = contacts.map((contact: { id: number; email: string; createdAt: string; attributes?: Record<string, unknown> }) => ({
+          id: String(contact.id),
+          email: contact.email,
+          status: contact.attributes?.STATUS || "active",
+          created_at: contact.createdAt || new Date().toISOString(),
         }))
+
+        allSubscribers = [...allSubscribers, ...subscribers]
+        
+        hasMore = contacts.length === limit
+        offset += limit
       }
     }
 
@@ -108,4 +125,3 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to export subscribers" }, { status: 500 })
   }
 }
-

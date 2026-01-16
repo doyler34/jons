@@ -301,105 +301,70 @@ ${buttonHTML}
   return withTracking(html, baseUrl, sendId)
 }
 
-const sendWithMailerLite = async (subject: string, html: string, API_KEY: string) => {
-  const isNewApi = API_KEY.startsWith("eyJ")
+const sendWithBrevo = async (subject: string, html: string, API_KEY: string) => {
+  const FROM_EMAIL = process.env.BREVO_FROM_EMAIL?.trim()
+  const FROM_NAME = process.env.BREVO_FROM_NAME?.trim() || "Jon Spirit"
+  const LIST_ID = process.env.BREVO_LIST_ID?.trim()
 
-  if (isNewApi) {
-    const FROM_EMAIL = process.env.MAILERLITE_FROM_EMAIL
-
-    if (!FROM_EMAIL) {
-      return { ok: false, error: "MAILERLITE_FROM_EMAIL not set. Add a verified sender email to .env.local" }
-    }
-
-    const campaignPayload = {
-      name: `Newsletter: ${subject} - ${new Date().toISOString()}`,
-      type: "regular",
-      emails: [
-        {
-          subject: subject,
-          from_name: "Jon Spirit",
-          from: FROM_EMAIL,
-          content: html,
-        },
-      ],
-    }
-
-    const campaignResponse = await fetch("https://connect.mailerlite.com/api/campaigns", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${API_KEY}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(campaignPayload),
-    })
-
-    const responseText = await campaignResponse.text()
-
-    if (!campaignResponse.ok) {
-      let error
-      try {
-        error = JSON.parse(responseText)
-      } catch {
-        error = { message: responseText }
-      }
-      console.error("Campaign creation error:", error)
-      return { ok: false, error: error.message || "Failed to create campaign" }
-    }
-
-    const campaign = JSON.parse(responseText)
-    const campaignId = campaign.data?.id
-
-    if (!campaignId) {
-      return { ok: false, error: "Failed to get campaign ID" }
-    }
-
-    // New MailerLite API: campaign is created as a draft; do NOT schedule/send it.
-    return { ok: true, campaignId }
+  if (!FROM_EMAIL) {
+    return { ok: false, error: "BREVO_FROM_EMAIL not set. Add a verified sender email to .env.local" }
   }
 
-  // Classic MailerLite API
-  const campaignResponse = await fetch("https://api.mailerlite.com/api/v2/campaigns", {
+  if (!LIST_ID) {
+    return { ok: false, error: "BREVO_LIST_ID not set. Add your newsletter list ID to .env.local" }
+  }
+
+  // Get all contacts from the list
+  const listResponse = await fetch(`https://api.brevo.com/v3/contacts/lists/${LIST_ID}/contacts`, {
+    method: "GET",
+    headers: {
+      "api-key": API_KEY,
+      "Accept": "application/json",
+    },
+  })
+
+  if (!listResponse.ok) {
+    const errorData = await listResponse.json()
+    return { ok: false, error: errorData.message || "Failed to fetch contact list" }
+  }
+
+  const listData = await listResponse.json()
+  const contacts = listData.contacts || []
+  
+  if (contacts.length === 0) {
+    return { ok: false, error: "No contacts in the list" }
+  }
+
+  // Send to all contacts (Brevo handles batching)
+  // Limit to 1000 per API call (Brevo limit)
+  const emails = contacts.slice(0, 1000).map((contact: { email: string }) => ({ email: contact.email }))
+
+  const sendResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: {
-      "X-MailerLite-ApiKey": API_KEY,
+      "api-key": API_KEY,
       "Content-Type": "application/json",
+      "Accept": "application/json",
     },
     body: JSON.stringify({
-      subject: subject,
-      name: `Newsletter: ${subject}`,
-      type: "regular",
-      from: process.env.MAILERLITE_FROM_EMAIL || "newsletter@jonspirit.com",
-      from_name: "Jon Spirit",
+      sender: {
+        name: FROM_NAME,
+        email: FROM_EMAIL,
+      },
+      to: emails,
+      subject,
+      htmlContent: html,
     }),
   })
 
-  if (!campaignResponse.ok) {
-    const error = await campaignResponse.json()
-    console.error("Campaign creation error:", error)
-    return { ok: false, error: error.error?.message || "Failed to create campaign" }
+  const sendData = await sendResponse.json()
+
+  if (!sendResponse.ok) {
+    return { ok: false, error: sendData.message || "Failed to send newsletter" }
   }
 
-  const campaign = await campaignResponse.json()
-  const campaignId = campaign.id
-
-  if (!campaignId) {
-    return { ok: false, error: "Failed to get campaign ID" }
-  }
-
-  await fetch(`https://api.mailerlite.com/api/v2/campaigns/${campaignId}/content`, {
-    method: "PUT",
-    headers: {
-      "X-MailerLite-ApiKey": API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      html,
-      plain: `${subject} - View this email in your browser to see the full content.`,
-    }),
-  })
-
-  // Classic MailerLite API: campaign with content is created as a draft; do NOT send it.
+  // Generate a campaign ID from the message ID
+  const campaignId = sendData.messageId || `campaign-${Date.now()}`
   return { ok: true, campaignId }
 }
 
@@ -421,10 +386,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const API_KEY = process.env.MAILERLITE_API_KEY?.trim()
+  const API_KEY = process.env.BREVO_API_KEY?.trim()
 
   if (!API_KEY) {
-    return NextResponse.json({ error: "MailerLite not configured" }, { status: 500 })
+    return NextResponse.json({ error: "Brevo not configured" }, { status: 500 })
   }
 
   await ensureTables()
@@ -457,7 +422,7 @@ export async function POST(request: NextRequest) {
           ? generatePosterEmailHTML(row.subject, row.poster_url, row.poster_text, row.button_text, row.button_link, baseUrl, sendId)
           : generateTextEmailHTML(row.subject, row.body_html, row.button_text, row.button_link, baseUrl, sendId)
 
-      const sendResult = await sendWithMailerLite(row.subject, emailHTML, API_KEY)
+      const sendResult = await sendWithBrevo(row.subject, emailHTML, API_KEY)
 
       if (!sendResult.ok) {
         failed += 1
