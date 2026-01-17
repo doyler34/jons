@@ -24,7 +24,8 @@ interface SpotifyData {
     genres: string[]
   }
   topTracks: SpotifyTrack[]
-  albums: { id: string; album_type?: string }[]
+  albums: Array<{ id: string; album_type?: string; [key: string]: any }> // All Spotify album data
+  albumsWithTracks?: Array<{ tracks: SpotifyTrack[]; album_type?: string }> // Albums with their tracks
 }
 
 function formatFollowers(count: number): string {
@@ -81,15 +82,21 @@ export default function Home() {
   // Get first track name for the hero button
   const firstTrackName = spotifyData?.topTracks?.[0]?.name || "LATEST TRACK"
 
-  // Separate albums and singles
-  const albums = spotifyData?.albums?.filter((album) => album.album_type === "album") || []
-  const singles = spotifyData?.albums?.filter((album) => album.album_type === "single") || []
+  // Count albums and singles - all data comes directly from Spotify
+  const totalAlbums = spotifyData?.albums || []
+  const albumCount = totalAlbums.filter((album: any) => album.album_type === "album" || !album.album_type).length
+  const singleCount = totalAlbums.filter((album: any) => album.album_type === "single").length
+  
+  // Count total tracks across all albums (from albumsWithTracks)
+  const totalTracksCount = spotifyData?.albumsWithTracks?.reduce((sum: number, album: any) => {
+    return sum + (album.tracks?.length || 0)
+  }, 0) || 0
   
   const stats = spotifyData
     ? [
-        { label: "Tracks", value: spotifyData.topTracks.length.toString() },
-        { label: "Albums", value: albums.length.toString() },
-        { label: "Singles", value: singles.length.toString() },
+        { label: "Tracks", value: totalTracksCount.toString() },
+        { label: "Albums", value: albumCount.toString() },
+        { label: "Singles", value: singleCount.toString() },
       ]
     : []
 

@@ -86,13 +86,8 @@ export async function GET(request: NextRequest) {
       .filter((t: any) => !overrides[t.id]?.hidden)
       .map((t: any) => applyOverrideToTrack(t, overrides))
 
-    const albums = (albumsRaw || []).map((album: any) => {
-      // Include album_type to distinguish between albums and singles
-      return {
-        ...album,
-        album_type: album.album_type || "album", // Default to album if not specified
-      }
-    })
+    // Return albums exactly as Spotify provides them - don't modify or filter
+    const albums = albumsRaw || []
 
     const albumsWithTracks = (albumsWithTracksRaw || []).map((album: any) => {
       const tracks = (album.tracks || [])
