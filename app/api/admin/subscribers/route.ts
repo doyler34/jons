@@ -48,18 +48,36 @@ export async function GET() {
 
         if (!response.ok) {
           const errorText = await response.text()
-          console.error("Brevo API error:", errorText)
-          break
+          let errorData
+          try {
+            errorData = JSON.parse(errorText)
+          } catch {
+            errorData = { message: errorText }
+          }
+          console.error("Brevo API error:", errorData)
+          // Return error details to frontend
+          return NextResponse.json({ 
+            subscribers: [], 
+            total: 0,
+            error: errorData.message || `Brevo API error: ${response.status}`,
+            details: errorData
+          }, { status: response.status })
         }
 
         const data = await response.json()
-        const contacts = data.contacts || []
+        // Brevo API returns contacts directly or in a contacts array
+        const contacts = Array.isArray(data) ? data : (data.contacts || [])
         
-        const subscribers = contacts.map((contact: { id: number; email: string; createdAt: string; attributes?: Record<string, unknown> }) => ({
+        if (contacts.length === 0) {
+          hasMore = false
+          break
+        }
+        
+        const subscribers = contacts.map((contact: { id: number; email: string; createdAt?: string; created_at?: string; attributes?: Record<string, unknown> }) => ({
           id: String(contact.id),
           email: contact.email,
           status: contact.attributes?.STATUS || "active",
-          created_at: contact.createdAt || new Date().toISOString(),
+          created_at: contact.createdAt || contact.created_at || new Date().toISOString(),
         }))
 
         allSubscribers = [...allSubscribers, ...subscribers]
@@ -86,18 +104,36 @@ export async function GET() {
 
         if (!response.ok) {
           const errorText = await response.text()
-          console.error("Brevo API error:", errorText)
-          break
+          let errorData
+          try {
+            errorData = JSON.parse(errorText)
+          } catch {
+            errorData = { message: errorText }
+          }
+          console.error("Brevo API error:", errorData)
+          // Return error details to frontend
+          return NextResponse.json({ 
+            subscribers: [], 
+            total: 0,
+            error: errorData.message || `Brevo API error: ${response.status}`,
+            details: errorData
+          }, { status: response.status })
         }
 
         const data = await response.json()
-        const contacts = data.contacts || []
+        // Brevo API returns contacts directly or in a contacts array
+        const contacts = Array.isArray(data) ? data : (data.contacts || [])
         
-        const subscribers = contacts.map((contact: { id: number; email: string; createdAt: string; attributes?: Record<string, unknown> }) => ({
+        if (contacts.length === 0) {
+          hasMore = false
+          break
+        }
+        
+        const subscribers = contacts.map((contact: { id: number; email: string; createdAt?: string; created_at?: string; attributes?: Record<string, unknown> }) => ({
           id: String(contact.id),
           email: contact.email,
           status: contact.attributes?.STATUS || "active",
-          created_at: contact.createdAt || new Date().toISOString(),
+          created_at: contact.createdAt || contact.created_at || new Date().toISOString(),
         }))
 
         allSubscribers = [...allSubscribers, ...subscribers]

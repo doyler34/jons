@@ -344,13 +344,28 @@ export default function AdminDashboard() {
     setLoadingSubscribers(true)
     try {
       const response = await fetch("/api/admin/subscribers")
+      const data = await response.json()
+      
       if (response.ok) {
-        const data = await response.json()
         setSubscribers(data.subscribers || [])
         setSubscriberCount(data.total || 0)
+        
+        // Show error message if there's one
+        if (data.error) {
+          console.error("Subscriber fetch error:", data.error, data.details)
+          alert(`Error fetching subscribers: ${data.error}`)
+        }
+      } else {
+        console.error("Failed to fetch subscribers:", data)
+        alert(`Error: ${data.error || "Failed to fetch subscribers"}`)
+        setSubscribers([])
+        setSubscriberCount(0)
       }
     } catch (error) {
       console.error("Failed to fetch subscribers:", error)
+      alert("Network error: Failed to fetch subscribers")
+      setSubscribers([])
+      setSubscriberCount(0)
     } finally {
       setLoadingSubscribers(false)
     }
