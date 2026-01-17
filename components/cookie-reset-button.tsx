@@ -21,7 +21,10 @@ export default function CookieResetButton() {
 
   if (reset) {
     return (
-      <div className="fixed bottom-4 right-4 z-[10000] bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg animate-in slide-in-from-bottom">
+      <div
+        className="fixed right-4 z-[10000] bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg animate-in slide-in-from-bottom"
+        style={{ bottom: "calc(1rem + env(safe-area-inset-bottom) + var(--player-bar-height, 0px))" }}
+      >
         <p className="text-sm font-semibold">Cookies reset! Reloading...</p>
       </div>
     )
@@ -31,7 +34,8 @@ export default function CookieResetButton() {
     <>
       <button
         onClick={() => setShowConfirm(true)}
-        className="fixed bottom-4 right-4 z-[10000] p-3 bg-muted/80 hover:bg-muted text-foreground rounded-full shadow-lg backdrop-blur-sm transition-all hover:scale-110 active:scale-95"
+        className="fixed right-4 z-[10000] p-3 bg-muted/80 hover:bg-muted text-foreground rounded-full shadow-lg backdrop-blur-sm transition-all hover:scale-110 active:scale-95"
+        style={{ bottom: "calc(1rem + env(safe-area-inset-bottom) + var(--player-bar-height, 0px))" }}
         title="Reset Cookie Preferences"
       >
         <RotateCcw className="w-5 h-5" />

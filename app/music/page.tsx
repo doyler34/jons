@@ -297,7 +297,7 @@ export default function MusicPage() {
               <h1 className="text-3xl md:text-5xl lg:text-6xl font-black mb-4 text-foreground">
                 {selectedAlbum.name}
               </h1>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground justify-center md:justify-start">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground justify-center md:justify-start">
                 <span className="font-semibold text-foreground">Jon Spirit</span>
                 <span>•</span>
                 <span>{selectedAlbum.release_date.split("-")[0]}</span>
@@ -310,10 +310,10 @@ export default function MusicPage() {
           </div>
 
           {/* Play All Button */}
-          <div className="flex gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row gap-4 mb-8">
             <button
               onClick={() => albumTracks.length > 0 && playTrack(albumTracks[0])}
-              className="flex items-center gap-2 px-8 py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-full transition-all"
+              className="flex w-full sm:w-auto items-center justify-center gap-2 px-8 py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-full transition-all"
             >
               <Play size={20} fill="currentColor" />
               Play
@@ -322,7 +322,7 @@ export default function MusicPage() {
               href={selectedAlbum.external_urls.spotify}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-6 py-3 border border-border hover:border-foreground text-foreground font-semibold rounded-full transition-all"
+              className="flex w-full sm:w-auto items-center justify-center gap-2 px-6 py-3 border border-border hover:border-foreground text-foreground font-semibold rounded-full transition-all"
             >
               <ExternalLink size={18} />
               Open in Spotify

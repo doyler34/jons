@@ -129,6 +129,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    padding-bottom: calc(var(--player-bar-height, 0px) + env(safe-area-inset-bottom));
   }
 
   .animate-write-on {

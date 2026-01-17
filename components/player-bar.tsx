@@ -17,6 +17,7 @@ interface PlayerBarProps {
 export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: PlayerBarProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const progressRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
 
@@ -57,6 +58,40 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
       }
     }
   }, [setIsPlaying])
+
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element) return
+
+    const updateHeight = () => {
+      const rect = element.getBoundingClientRect()
+      const computedStyles = window.getComputedStyle(element)
+      const paddingBottom = Number.parseFloat(computedStyles.paddingBottom || "0")
+      const baseHeight = Math.max(0, rect.height - paddingBottom)
+      document.documentElement.style.setProperty("--player-bar-height", `${Math.ceil(baseHeight)}px`)
+    }
+
+    updateHeight()
+
+    let resizeObserver: ResizeObserver | null = null
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(updateHeight)
+      resizeObserver.observe(element)
+    } else {
+      window.addEventListener("resize", updateHeight)
+    }
+    window.addEventListener("orientationchange", updateHeight)
+
+    return () => {
+      if (resizeObserver) {
+        resizeObserver.disconnect()
+      } else {
+        window.removeEventListener("resize", updateHeight)
+      }
+      window.removeEventListener("orientationchange", updateHeight)
+      document.documentElement.style.removeProperty("--player-bar-height")
+    }
+  }, [])
 
   // Handle track changes
   useEffect(() => {
@@ -135,7 +170,7 @@ export default function PlayerBar({ currentTrack, isPlaying, setIsPlaying }: Pla
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-40">
+    <div ref={containerRef} className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-40 pb-[env(safe-area-inset-bottom)]">
       <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-16">
         {/* Progress Bar - Clickable */}
         <div 

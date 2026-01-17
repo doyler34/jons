@@ -78,7 +78,7 @@ export default function CookieConsent() {
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998]" />
 
       {/* Cookie Banner */}
-      <div className="fixed bottom-0 left-0 right-0 z-[9999] p-4 md:p-6 animate-in slide-in-from-bottom duration-300">
+      <div className="fixed bottom-0 left-0 right-0 z-[9999] p-4 md:p-6 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-6 animate-in slide-in-from-bottom duration-300">
         <div className="max-w-6xl mx-auto bg-card border-2 border-border rounded-2xl shadow-2xl">
           {!showSettings ? (
             // Main Cookie Banner
