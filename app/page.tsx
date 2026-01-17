@@ -84,17 +84,17 @@ export default function Home() {
 
   // Count albums and singles - use albumsWithTracks (same as music page) to ensure consistency
   // Count based on track count instead of Spotify's album_type classification:
-  // Albums = 4+ tracks, Singles = 1-3 tracks
+  // Albums = 3+ tracks, Singles = 1-2 tracks
   const totalAlbums = spotifyData?.albumsWithTracks || []
   
   const albumCount = totalAlbums.filter((album: any) => {
     const trackCount = album.tracks?.length || 0
-    return trackCount >= 4 // Albums have 4 or more tracks
+    return trackCount >= 3 // Albums have 3 or more tracks
   }).length
   
   const singleCount = totalAlbums.filter((album: any) => {
     const trackCount = album.tracks?.length || 0
-    return trackCount > 0 && trackCount < 4 // Singles have 1-3 tracks
+    return trackCount > 0 && trackCount <= 2 // Singles have 1-2 tracks
   }).length
   
   // Count total tracks across all albums (from albumsWithTracks)
