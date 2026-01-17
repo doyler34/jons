@@ -24,7 +24,7 @@ interface SpotifyTrack {
 interface SpotifyAlbum {
   id: string
   name: string
-  images: { url: string }[]
+  images: { url: string; height?: number; width?: number }[]
   release_date: string
   total_tracks: number
   external_urls: {
