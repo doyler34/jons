@@ -52,6 +52,15 @@ interface SongOverride {
   hidden?: boolean
 }
 
+interface ManualSong {
+  id: number
+  title: string
+  album_name: string
+  audio_url: string
+  cover_url: string | null
+  created_at: string
+}
+
 function formatDuration(ms: number): string {
   const minutes = Math.floor(ms / 60000)
   const seconds = Math.floor((ms % 60000) / 1000)
@@ -66,6 +75,7 @@ export default function MusicPage() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [loading, setLoading] = useState(true)
   const [overrides, setOverrides] = useState<Record<string, SongOverride>>({})
+  const [manualSongs, setManualSongs] = useState<ManualSong[]>([])
   const [autoplayAlbumId, setAutoplayAlbumId] = useState<string | null>(null)
 
   // Save current track to localStorage for iOS PWA persistence
@@ -78,20 +88,66 @@ export default function MusicPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [spotifyRes, overridesRes] = await Promise.all([
+        const [spotifyRes, overridesRes, manualSongsRes] = await Promise.all([
           fetch("/api/spotify"),
           fetch("/api/songs/overrides"),
+          fetch("/api/songs/manual"),
         ])
 
         const spotifyData = await spotifyRes.json()
         const overridesData = await overridesRes.json()
+        const manualSongsData = await manualSongsRes.json()
         const overridesMap: Record<string, SongOverride> = overridesData.overrides || {}
         setOverrides(overridesMap)
+        setManualSongs(manualSongsData.songs || [])
 
         // Set albums with tracks
-        if (spotifyData.albumsWithTracks) {
-          setAlbums(spotifyData.albumsWithTracks)
+        let albumsList: SpotifyAlbum[] = spotifyData.albumsWithTracks || []
+        
+        // Group manual songs by album_name and create virtual albums
+        if (manualSongsData.songs && manualSongsData.songs.length > 0) {
+          const manualSongsByAlbum: Record<string, ManualSong[]> = {}
+          manualSongsData.songs.forEach((song: ManualSong) => {
+            const albumName = song.album_name || "Singles"
+            if (!manualSongsByAlbum[albumName]) {
+              manualSongsByAlbum[albumName] = []
+            }
+            manualSongsByAlbum[albumName].push(song)
+          })
+          
+          // Convert manual songs to virtual albums
+          Object.entries(manualSongsByAlbum).forEach(([albumName, songs]) => {
+            const tracks: SpotifyTrack[] = songs.map((song: ManualSong) => ({
+              id: `manual-${song.id}`,
+              name: song.title,
+              duration_ms: 0, // Duration not stored for manual songs
+              preview_url: song.audio_url, // Store audio_url in preview_url for manual songs
+              track_number: undefined,
+              album: {
+                id: `manual-album-${albumName}`,
+                name: albumName,
+                images: song.cover_url ? [{ url: song.cover_url, height: 300, width: 300 }] : [],
+              },
+              external_urls: {
+                spotify: "#", // Manual songs don't have Spotify links
+              },
+            }))
+            
+            albumsList.push({
+              id: `manual-album-${albumName}`,
+              name: albumName,
+              images: songs[0]?.cover_url ? [{ url: songs[0].cover_url, height: 300, width: 300 }] : [],
+              release_date: songs[0]?.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+              total_tracks: songs.length,
+              external_urls: {
+                spotify: "#",
+              },
+              tracks,
+            })
+          })
         }
+        
+        setAlbums(albumsList)
 
         // Set top tracks
         if (spotifyData.topTracks) {
@@ -104,7 +160,7 @@ export default function MusicPage() {
               duration: formatDuration(track.duration_ms),
               durationMs: track.duration_ms,
               image: (overridesMap[track.id]?.cover_url as string | null) || track.album.images[0]?.url || "/placeholder.svg",
-              previewUrl: (overridesMap[track.id]?.audio_url as string | null) || track.preview_url,
+              previewUrl: (overridesMap[track.id]?.audio_url as string | null) || null, // Only use manually uploaded audio, no Spotify preview
               spotifyUrl: track.external_urls.spotify,
               albumName: track.album.name,
               albumId: track.album.id,
@@ -162,13 +218,15 @@ export default function MusicPage() {
 
   const getTrackWithOverride = (track: SpotifyTrack): TrackDisplay => {
     const override = overrides[track.id]
+    // For manual songs (id starts with "manual-"), use the preview_url directly (it contains the audio_url)
+    const isManualSong = track.id.startsWith("manual-")
     return {
       id: track.id,
       title: track.name,
-      duration: formatDuration(track.duration_ms),
+      duration: track.duration_ms > 0 ? formatDuration(track.duration_ms) : "—",
       durationMs: track.duration_ms,
       image: override?.cover_url || track.album.images[0]?.url || "/placeholder.svg",
-      previewUrl: override?.audio_url || track.preview_url,
+      previewUrl: isManualSong ? track.preview_url : (override?.audio_url || null), // Only use manually uploaded audio, no Spotify preview
       spotifyUrl: track.external_urls.spotify,
       albumName: track.album.name,
       albumId: track.album.id,

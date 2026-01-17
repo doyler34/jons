@@ -34,6 +34,7 @@ export interface SpotifyAlbum {
   images: { url: string; height: number; width: number }[]
   release_date: string
   total_tracks: number
+  album_type?: string // "album" or "single"
   external_urls: {
     spotify: string
   }

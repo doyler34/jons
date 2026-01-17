@@ -46,7 +46,13 @@ async function fetchOverrides(): Promise<Record<string, Override>> {
 
 function applyOverrideToTrack(track: any, overrides: Record<string, Override>) {
   const ov = overrides[track.id]
-  if (!ov) return track
+  if (!ov) {
+    // No override - remove Spotify preview_url, only use manually uploaded audio
+    return {
+      ...track,
+      preview_url: null, // Don't use Spotify preview URLs
+    }
+  }
 
   const images = ov.cover_url
     ? [{ url: ov.cover_url }, ...(track.album?.images || [])]
@@ -54,7 +60,7 @@ function applyOverrideToTrack(track: any, overrides: Record<string, Override>) {
 
   return {
     ...track,
-    preview_url: ov.audio_url ?? track.preview_url,
+    preview_url: ov.audio_url || null, // Only use manually uploaded audio, no Spotify fallback
     album: {
       ...track.album,
       images,
@@ -81,8 +87,11 @@ export async function GET(request: NextRequest) {
       .map((t: any) => applyOverrideToTrack(t, overrides))
 
     const albums = (albumsRaw || []).map((album: any) => {
-      // If we have an override cover for any track, keep album images as-is; per-track covers handled below
-      return album
+      // Include album_type to distinguish between albums and singles
+      return {
+        ...album,
+        album_type: album.album_type || "album", // Default to album if not specified
+      }
     })
 
     const albumsWithTracks = (albumsWithTracksRaw || []).map((album: any) => {

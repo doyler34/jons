@@ -24,7 +24,7 @@ interface SpotifyData {
     genres: string[]
   }
   topTracks: SpotifyTrack[]
-  albums: { id: string }[]
+  albums: { id: string; album_type?: string }[]
 }
 
 function formatFollowers(count: number): string {
@@ -81,11 +81,15 @@ export default function Home() {
   // Get first track name for the hero button
   const firstTrackName = spotifyData?.topTracks?.[0]?.name || "LATEST TRACK"
 
+  // Separate albums and singles
+  const albums = spotifyData?.albums?.filter((album) => album.album_type === "album") || []
+  const singles = spotifyData?.albums?.filter((album) => album.album_type === "single") || []
+  
   const stats = spotifyData
     ? [
-        { label: "Followers", value: formatFollowers(spotifyData.artist.followers.total) },
-        { label: "Top Tracks", value: spotifyData.topTracks.length.toString() },
-        { label: "Releases", value: spotifyData.albums?.length?.toString() || "0" },
+        { label: "Tracks", value: spotifyData.topTracks.length.toString() },
+        { label: "Albums", value: albums.length.toString() },
+        { label: "Singles", value: singles.length.toString() },
       ]
     : []
 

@@ -1369,14 +1369,9 @@ export default function AdminDashboard() {
                                 ✓ Custom Cover
                               </span>
                             )}
-                            {!hasAudio && track.preview_url && (
-                              <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded">
-                                Spotify Preview
-                              </span>
-                            )}
-                            {!hasAudio && !track.preview_url && (
+                            {!hasAudio && (
                               <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded">
-                                No Audio
+                                No Audio (Upload Required)
                               </span>
                             )}
                           </div>
