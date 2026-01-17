@@ -82,9 +82,13 @@ export default function Home() {
   // Get first track name for the hero button
   const firstTrackName = spotifyData?.topTracks?.[0]?.name || "LATEST TRACK"
 
-  // Count albums and singles - all data comes directly from Spotify
-  const totalAlbums = spotifyData?.albums || []
-  const albumCount = totalAlbums.filter((album: any) => album.album_type === "album" || !album.album_type).length
+  // Count albums and singles - use albumsWithTracks (same as music page) to ensure consistency
+  // Only count from albumsWithTracks to match what's displayed on the music page
+  const totalAlbums = spotifyData?.albumsWithTracks || []
+  const albumCount = totalAlbums.filter((album: any) => {
+    // Count as album if album_type is "album" or undefined/null (default to album)
+    return album.album_type === "album" || !album.album_type
+  }).length
   const singleCount = totalAlbums.filter((album: any) => album.album_type === "single").length
   
   // Count total tracks across all albums (from albumsWithTracks)

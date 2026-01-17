@@ -267,7 +267,13 @@ export async function getAllAlbumsWithTracks(): Promise<AlbumWithTracks[]> {
           external_urls: track.external_urls,
         }))
 
-        return { ...album, tracks }
+        // Preserve album_type from original album (or from albumData if available)
+        // This ensures album_type is always included in the returned object
+        return { 
+          ...album, 
+          tracks,
+          album_type: albumData.album_type || album.album_type // Use albumData's album_type if available, otherwise original
+        }
       })
     )
 
