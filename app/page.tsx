@@ -83,13 +83,19 @@ export default function Home() {
   const firstTrackName = spotifyData?.topTracks?.[0]?.name || "LATEST TRACK"
 
   // Count albums and singles - use albumsWithTracks (same as music page) to ensure consistency
-  // Only count from albumsWithTracks to match what's displayed on the music page
+  // Count based on track count instead of Spotify's album_type classification:
+  // Albums = 4+ tracks, Singles = 1-3 tracks
   const totalAlbums = spotifyData?.albumsWithTracks || []
+  
   const albumCount = totalAlbums.filter((album: any) => {
-    // Count as album if album_type is "album" or undefined/null (default to album)
-    return album.album_type === "album" || !album.album_type
+    const trackCount = album.tracks?.length || 0
+    return trackCount >= 4 // Albums have 4 or more tracks
   }).length
-  const singleCount = totalAlbums.filter((album: any) => album.album_type === "single").length
+  
+  const singleCount = totalAlbums.filter((album: any) => {
+    const trackCount = album.tracks?.length || 0
+    return trackCount > 0 && trackCount < 4 // Singles have 1-3 tracks
+  }).length
   
   // Count total tracks across all albums (from albumsWithTracks)
   const totalTracksCount = spotifyData?.albumsWithTracks?.reduce((sum: number, album: any) => {
