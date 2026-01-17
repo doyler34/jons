@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
 import { put } from "@vercel/blob"
 import { cookies } from "next/headers"
+import { verifyAdminSessionToken } from "@/lib/admin-session"
 
 export async function POST(request: NextRequest) {
   // Check authentication
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
 
-  if (!session?.value) {
+  const secret = process.env.ADMIN_PASSWORD
+  const ok = !!secret && verifyAdminSessionToken(session?.value, secret)
+
+  if (!ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

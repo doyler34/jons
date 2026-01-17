@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { sql } from "@vercel/postgres"
+import { verifyAdminSessionToken } from "@/lib/admin-session"
 
 const STATUS_SCHEDULED = "scheduled"
 const STATUS_CANCELLED = "cancelled"
@@ -47,7 +48,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
 
-  if (!session?.value) {
+  const secret = process.env.ADMIN_PASSWORD
+  const ok = !!secret && verifyAdminSessionToken(session?.value, secret)
+
+  if (!ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -101,7 +105,10 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
 
-  if (!session?.value) {
+  const secret = process.env.ADMIN_PASSWORD
+  const ok = !!secret && verifyAdminSessionToken(session?.value, secret)
+
+  if (!ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
