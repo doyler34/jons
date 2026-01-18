@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server"
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client"
+import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { verifyAdminSessionToken } from "@/lib/admin-session"
 
-// Generate a client upload token for direct uploads to Vercel Blob
-export async function POST(request: NextRequest) {
+export async function POST(request: Request): Promise<NextResponse> {
   // Check authentication
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
@@ -15,26 +15,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const body = (await request.json()) as HandleUploadBody
+
   try {
-    const { filename } = await request.json()
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async (pathname) => {
+        // Generate unique filename
+        const timestamp = Date.now()
+        const random = Math.random().toString(36).substring(7)
+        const extension = pathname.split(".").pop() || "mp3"
+        const filename = `song-${timestamp}-${random}.${extension}`
 
-    if (!filename) {
-      return NextResponse.json({ error: "Filename required" }, { status: 400 })
-    }
-
-    // Generate unique filename
-    const timestamp = Date.now()
-    const random = Math.random().toString(36).substring(7)
-    const extension = filename.split(".").pop() || "mp3"
-    const uniqueFilename = `song-${timestamp}-${random}.${extension}`
-
-    // Return token for client-side upload
-    return NextResponse.json({
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-      filename: uniqueFilename,
+        return {
+          allowedContentTypes: ["audio/mpeg", "audio/mp3", "audio/wav", "audio/m4a", "audio/ogg"],
+          tokenPayload: JSON.stringify({
+            // Optional metadata
+          }),
+          pathname: filename,
+        }
+      },
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
+        console.log("Upload completed:", blob.pathname)
+      },
     })
+
+    return NextResponse.json(jsonResponse)
   } catch (error) {
-    console.error("Token generation error:", error)
-    return NextResponse.json({ error: "Failed to generate upload token" }, { status: 500 })
+    console.error("Upload token error:", error)
+    return NextResponse.json(
+      { error: (error as Error).message },
+      { status: 400 }
+    )
   }
 }
