@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink } from "lucide-react"
+import { upload } from "@vercel/blob/client"
 
 interface Subscriber {
   id: string
@@ -776,46 +777,70 @@ export default function AdminDashboard() {
     setMusicStatus(null)
 
     try {
-      // Upload audio file
-      const audioFormData = new FormData()
-      audioFormData.append("file", newSong.audioFile)
-      const audioRes = await fetch("/api/admin/upload", { method: "POST", body: audioFormData })
-      if (!audioRes.ok) throw new Error("Failed to upload audio")
-      const { url: audioUrl } = await audioRes.json()
+      const files = newSongAudioRef.current?.files
+      const fileCount = files?.length || 1
 
-      // Upload cover if provided
-      let coverUrl = null
-      if (newSong.coverFile) {
-        const coverFormData = new FormData()
-        coverFormData.append("file", newSong.coverFile)
-        const coverRes = await fetch("/api/admin/upload", { method: "POST", body: coverFormData })
-        if (coverRes.ok) {
-          const { url } = await coverRes.json()
-          coverUrl = url
+      // Upload each audio file (supports multiple)
+      for (let i = 0; i < fileCount; i++) {
+        const audioFile = files?.[i] || newSong.audioFile
+        if (!audioFile) continue
+
+        setMusicStatus({ 
+          type: "success", 
+          message: fileCount > 1 ? `Uploading ${i + 1}/${fileCount}: ${audioFile.name}...` : "Uploading..." 
+        })
+
+        // Upload audio using client-side direct upload
+        const timestamp = Date.now()
+        const random = Math.random().toString(36).substring(7)
+        const extension = audioFile.name.split(".").pop() || "mp3"
+        const filename = `song-${timestamp}-${random}.${extension}`
+
+        const audioBlob = await upload(filename, audioFile, {
+          access: "public",
+          handleUploadUrl: "/api/admin/upload-token",
+        })
+
+        // Upload cover if provided (only for first file)
+        let coverUrl = null
+        if (i === 0 && newSong.coverFile) {
+          const coverFormData = new FormData()
+          coverFormData.append("file", newSong.coverFile)
+          const coverRes = await fetch("/api/admin/upload", { method: "POST", body: coverFormData })
+          if (coverRes.ok) {
+            const { url } = await coverRes.json()
+            coverUrl = url
+          }
         }
+
+        // Save to database
+        const songTitle = fileCount > 1 ? audioFile.name.replace(/\.(mp3|wav|m4a|ogg)$/i, "") : newSong.title
+        const saveRes = await fetch("/api/songs/manual", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: songTitle,
+            album_name: newSong.albumName || "Singles",
+            audio_url: audioBlob.url,
+            cover_url: coverUrl,
+          }),
+        })
+
+        if (!saveRes.ok) throw new Error(`Failed to save ${songTitle}`)
+        
+        const { song } = await saveRes.json()
+        setManualSongs(prev => [song, ...prev])
       }
 
-      // Save to database
-      const saveRes = await fetch("/api/songs/manual", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newSong.title,
-          album_name: newSong.albumName || "Singles",
-          audio_url: audioUrl,
-          cover_url: coverUrl,
-        }),
+      setMusicStatus({ 
+        type: "success", 
+        message: fileCount > 1 ? `Successfully uploaded ${fileCount} songs!` : "Song uploaded successfully!" 
       })
-
-      if (!saveRes.ok) throw new Error("Failed to save song")
-      
-      const { song } = await saveRes.json()
-      setManualSongs(prev => [song, ...prev])
-      setMusicStatus({ type: "success", message: "Song uploaded successfully!" })
       setShowUploadModal(false)
       setNewSong({ title: "", albumName: "", audioFile: null, coverFile: null })
       if (newSongAudioRef.current) newSongAudioRef.current.value = ""
       if (newSongCoverRef.current) newSongCoverRef.current.value = ""
+      fetchManualSongs()
     } catch (error) {
       console.error("Upload error:", error)
       setMusicStatus({ type: "error", message: error instanceof Error ? error.message : "Upload failed" })
