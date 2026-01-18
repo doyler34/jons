@@ -70,8 +70,9 @@ export default function TermsOfUse() {
           <section>
             <h2 className="text-xl font-bold text-foreground mb-4">7. GOVERNING LAW</h2>
             <p>
-              These terms and conditions are governed by and construed in accordance with the laws of the United States,
-              and you irrevocably submit to the exclusive jurisdiction of the courts in that location.
+              These terms and conditions are governed by and construed in accordance with the laws of Canada and the
+              laws of the Province of Ontario, as applicable, and you irrevocably submit to the exclusive jurisdiction
+              of the courts of Ontario.
             </p>
           </section>
 
@@ -81,7 +82,7 @@ export default function TermsOfUse() {
           </section>
 
           <section className="pt-4 border-t border-border">
-            <p className="text-xs">Last updated: December 2024</p>
+            <p className="text-xs">Last updated: January 2026</p>
           </section>
         </div>
       </div>
