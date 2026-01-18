@@ -1631,7 +1631,7 @@ export default function AdminDashboard() {
                             ))}
                           </optgroup>
                           <optgroup label="Spotify Tracks">
-                            {spotifyTracks.map((track) => (
+                            {albums.flatMap(album => album.tracks || []).map((track) => (
                               <option key={track.id} value={track.id}>
                                 {track.name} - {track.artists[0]?.name}
                               </option>
