@@ -79,16 +79,17 @@ export default function EventsPage() {
           <section className="mb-12 md:mb-16">
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-card to-card border border-border">
               {nextEvent.image_url && (
-                <div className="absolute inset-0 opacity-20">
+                <div className="absolute inset-0 opacity-35">
                   <img 
                     src={nextEvent.image_url} 
                     alt={nextEvent.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover object-center"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent"></div>
+                  {/* lighter overlay so image shows through, stays readable */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-card/70 via-card/40 to-transparent"></div>
                 </div>
               )}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_55%)]"></div>
               <div className="relative p-6 md:p-10 lg:p-12">
                 <div className="flex flex-col lg:flex-row gap-8 items-start">
                   {/* Date Block */}
@@ -178,12 +179,13 @@ export default function EventsPage() {
                     className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 md:p-6 bg-card border border-border rounded-xl hover:border-primary/50 transition-all overflow-hidden relative"
                   >
                     {event.image_url && (
-                      <div className="absolute inset-0 opacity-10">
+                      <div className="absolute inset-0 opacity-20">
                         <img 
                           src={event.image_url} 
                           alt={event.title}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover object-center"
                         />
+                        <div className="absolute inset-0 bg-gradient-to-r from-card/40 via-transparent to-card/40"></div>
                       </div>
                     )}
                     

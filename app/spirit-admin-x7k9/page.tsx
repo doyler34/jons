@@ -2487,16 +2487,20 @@ export default function AdminDashboard() {
                           className="bg-input border-border"
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Time <span className="text-muted-foreground font-normal">(optional)</span></label>
-                        <Input
-                          type="text"
-                          placeholder="e.g., 8:00 PM"
-                          value={eventForm.time}
-                          onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
-                          className="bg-input border-border"
-                        />
-                      </div>
+                      {!eventForm.is_past ? (
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Time <span className="text-muted-foreground font-normal">(optional)</span></label>
+                          <Input
+                            type="text"
+                            placeholder="e.g., 8:00 PM"
+                            value={eventForm.time}
+                            onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
+                            className="bg-input border-border"
+                          />
+                        </div>
+                      ) : (
+                        <div className="hidden sm:block" />
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">Event Image <span className="text-muted-foreground font-normal">(optional)</span></label>
