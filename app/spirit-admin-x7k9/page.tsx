@@ -769,7 +769,7 @@ export default function AdminDashboard() {
     setSending(false)
   }
 
-  // Upload new manual song
+  // Upload new manual song or override existing
   const handleNewSongUpload = async () => {
     if (newSong.isOverride && !newSong.overrideTarget) {
       setMusicStatus({ type: "error", message: "Please select a song to override" })
