@@ -22,14 +22,28 @@ export async function POST(request: Request): Promise<NextResponse> {
       body,
       request,
       onBeforeGenerateToken: async (pathname) => {
-        // Generate unique filename
+        // Generate unique filename (supports audio + images)
         const timestamp = Date.now()
         const random = Math.random().toString(36).substring(7)
         const extension = pathname.split(".").pop() || "mp3"
-        const filename = `song-${timestamp}-${random}.${extension}`
+        const filename = `upload-${timestamp}-${random}.${extension}`
 
         return {
-          allowedContentTypes: ["audio/mpeg", "audio/mp3", "audio/wav", "audio/m4a", "audio/ogg"],
+          allowedContentTypes: [
+            // audio
+            "audio/mpeg",
+            "audio/mp3",
+            "audio/wav",
+            "audio/m4a",
+            "audio/ogg",
+            // images
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/gif",
+            "image/avif",
+            "image/svg+xml",
+          ],
           tokenPayload: JSON.stringify({
             // Optional metadata
           }),

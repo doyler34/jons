@@ -960,13 +960,40 @@ export default function AdminDashboard() {
       const url = editingEvent ? `/api/events/${editingEvent.id}` : "/api/events"
       const method = editingEvent ? "PUT" : "POST"
 
+      let imageUrl = eventForm.image_url
+      if (eventImageFile) {
+        const timestamp = Date.now()
+        const random = Math.random().toString(36).substring(7)
+        const extension = eventImageFile.name.split(".").pop() || "jpg"
+        const filename = `event-${timestamp}-${random}.${extension}`
+
+        const blob = await upload(filename, eventImageFile, {
+          access: "public",
+          handleUploadUrl: "/api/admin/upload-token",
+        })
+
+        imageUrl = blob.url
+      }
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(eventForm),
+        body: JSON.stringify({
+          ...eventForm,
+          image_url: imageUrl,
+        }),
       })
 
-      if (!res.ok) throw new Error("Failed to save event")
+      if (!res.ok) {
+        let msg = "Failed to save event"
+        try {
+          const data = await res.json()
+          msg = data?.error || data?.details || msg
+        } catch {
+          // ignore
+        }
+        throw new Error(msg)
+      }
 
       const data = await res.json()
       
@@ -981,9 +1008,11 @@ export default function AdminDashboard() {
       setShowEventModal(false)
       setEditingEvent(null)
       setEventForm({ title: "", venue: "", city: "", date: "", time: "", ticket_url: "", description: "", image_url: "", is_past: false })
+      setEventImageFile(null)
+      if (eventImageRef.current) eventImageRef.current.value = ""
     } catch (error) {
       console.error("Save event error:", error)
-      setEventStatus({ type: "error", message: "Failed to save event" })
+      setEventStatus({ type: "error", message: error instanceof Error ? error.message : "Failed to save event" })
     } finally {
       setSavingEvent(false)
     }
