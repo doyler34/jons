@@ -301,28 +301,42 @@ export default function BulkUploadPage() {
   }
 
   const deleteSong = async (song: CombinedSong) => {
-    if (!confirm(`Are you sure you want to delete "${song.title}"?`)) return
+    if (!confirm(`Remove audio from "${song.title}"?`)) return
 
     try {
       if (song.type === "manual") {
+        // For manual songs, just remove the audio_url, don't delete the song
         const actualId = song.id.replace("manual-", "")
-        const res = await fetch(`/api/songs/manual?id=${actualId}`, { method: "DELETE" })
+        const res = await fetch(`/api/songs/manual`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: actualId,
+            audio_url: null,
+          }),
+        })
+        
         if (res.ok) {
-          setAllSongs((prev) => prev.filter((s) => s.id !== song.id))
-          setStatus({ type: "success", message: "Song deleted" })
+          // Update the song to show it has no audio
+          setAllSongs((prev) => prev.map((s) => 
+            s.id === song.id ? { ...s, audio_url: null } : s
+          ))
+          setStatus({ type: "success", message: "Audio removed from song" })
         }
       } else if (song.type === "spotify" && song.spotify_id) {
         // For Spotify tracks, remove the audio override
         const res = await fetch(`/api/songs/overrides?spotify_id=${song.spotify_id}&field=audio`, {
           method: "DELETE"
         })
+        
         if (res.ok) {
+          // Remove from list since it no longer has custom audio
           setAllSongs((prev) => prev.filter((s) => s.id !== song.id))
           setStatus({ type: "success", message: "Audio removed from Spotify track" })
         }
       }
     } catch (error) {
-      setStatus({ type: "error", message: "Failed to delete song" })
+      setStatus({ type: "error", message: "Failed to remove audio" })
     }
   }
 
