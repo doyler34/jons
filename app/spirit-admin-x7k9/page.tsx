@@ -761,8 +761,18 @@ export default function AdminDashboard() {
 
   // Upload new manual song
   const handleNewSongUpload = async () => {
-    if (!newSong.title || !newSong.audioFile) {
-      setMusicStatus({ type: "error", message: "Title and audio file are required" })
+    if (newSong.isOverride && !newSong.overrideTarget) {
+      setMusicStatus({ type: "error", message: "Please select a song to override" })
+      return
+    }
+    
+    if (!newSong.isOverride && !newSong.title) {
+      setMusicStatus({ type: "error", message: "Title is required for new songs" })
+      return
+    }
+
+    if (!newSong.audioFile) {
+      setMusicStatus({ type: "error", message: "Audio file is required" })
       return
     }
 
@@ -809,34 +819,85 @@ export default function AdminDashboard() {
           coverUrl = coverBlob.url
         }
 
-        // Save to database
-        const songTitle = fileCount > 1 ? audioFile.name.replace(/\.(mp3|wav|m4a|ogg)$/i, "") : newSong.title
-        const saveRes = await fetch("/api/songs/manual", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: songTitle,
-            album_name: newSong.albumName || "Singles",
-            audio_url: audioBlob.url,
-            cover_url: coverUrl,
-          }),
-        })
+        // Override existing song or create new one
+        if (newSong.isOverride && newSong.overrideTarget) {
+          const target = newSong.overrideTarget
+          
+          if (target.startsWith("manual-")) {
+            // Override manual song
+            const actualId = target.replace("manual-", "")
+            const saveRes = await fetch("/api/songs/manual", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                id: actualId,
+                audio_url: audioBlob.url,
+                ...(coverUrl && { cover_url: coverUrl }),
+              }),
+            })
+            
+            if (!saveRes.ok) throw new Error("Failed to override manual song")
+            
+            const { song } = await saveRes.json()
+            setManualSongs(prev => prev.map(s => s.id === parseInt(actualId) ? song : s))
+          } else {
+            // Override Spotify track
+            const saveRes = await fetch("/api/songs/overrides", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                spotify_id: target,
+                audio_url: audioBlob.url,
+                ...(coverUrl && { cover_url: coverUrl }),
+              }),
+            })
+            
+            if (!saveRes.ok) throw new Error("Failed to override Spotify track")
+            
+            setOverrides((prev) => ({
+              ...prev,
+              [target]: {
+                ...prev[target],
+                audio_url: audioBlob.url,
+                ...(coverUrl && { cover_url: coverUrl }),
+              },
+            }))
+          }
+        } else {
+          // Create new manual song
+          const songTitle = fileCount > 1 ? audioFile.name.replace(/\.(mp3|wav|m4a|ogg)$/i, "") : newSong.title
+          const saveRes = await fetch("/api/songs/manual", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: songTitle,
+              album_name: newSong.albumName || "Singles",
+              audio_url: audioBlob.url,
+              cover_url: coverUrl,
+            }),
+          })
 
-        if (!saveRes.ok) throw new Error(`Failed to save ${songTitle}`)
-        
-        const { song } = await saveRes.json()
-        setManualSongs(prev => [song, ...prev])
+          if (!saveRes.ok) throw new Error(`Failed to save ${songTitle}`)
+          
+          const { song } = await saveRes.json()
+          setManualSongs(prev => [song, ...prev])
+        }
       }
 
       setMusicStatus({ 
         type: "success", 
-        message: fileCount > 1 ? `Successfully uploaded ${fileCount} songs!` : "Song uploaded successfully!" 
+        message: newSong.isOverride 
+          ? "Song overridden successfully!" 
+          : fileCount > 1 
+            ? `Successfully uploaded ${fileCount} songs!` 
+            : "Song uploaded successfully!" 
       })
       setShowUploadModal(false)
-      setNewSong({ title: "", albumName: "", audioFile: null, coverFile: null })
+      setNewSong({ title: "", albumName: "", audioFile: null, coverFile: null, isOverride: false, overrideTarget: null })
       if (newSongAudioRef.current) newSongAudioRef.current.value = ""
       if (newSongCoverRef.current) newSongCoverRef.current.value = ""
       fetchManualSongs()
+      fetchMusic()
     } catch (error) {
       console.error("Upload error:", error)
       setMusicStatus({ type: "error", message: error instanceof Error ? error.message : "Upload failed" })
@@ -1519,26 +1580,74 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                   <div className="p-6 space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Song Title *</label>
-                      <Input
-                        type="text"
-                        placeholder="Enter song title"
-                        value={newSong.title}
-                        onChange={(e) => setNewSong(prev => ({ ...prev, title: e.target.value }))}
-                        className="bg-input border-border"
+                    {/* Override Checkbox */}
+                    <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md">
+                      <input
+                        type="checkbox"
+                        id="overrideMode"
+                        checked={newSong.isOverride}
+                        onChange={(e) => setNewSong(prev => ({ 
+                          ...prev, 
+                          isOverride: e.target.checked,
+                          overrideTarget: null 
+                        }))}
+                        className="w-4 h-4 cursor-pointer"
                       />
+                      <label htmlFor="overrideMode" className="text-sm font-medium cursor-pointer">
+                        Override existing song audio
+                      </label>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Album Name <span className="text-muted-foreground font-normal">(optional, defaults to "Singles")</span></label>
-                      <Input
-                        type="text"
-                        placeholder="Singles"
-                        value={newSong.albumName}
-                        onChange={(e) => setNewSong(prev => ({ ...prev, albumName: e.target.value }))}
-                        className="bg-input border-border"
-                      />
-                    </div>
+
+                    {/* Show dropdown if override mode is enabled */}
+                    {newSong.isOverride ? (
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Select Song to Override *</label>
+                        <select
+                          value={newSong.overrideTarget || ""}
+                          onChange={(e) => setNewSong(prev => ({ ...prev, overrideTarget: e.target.value || null }))}
+                          className="w-full px-3 py-2 bg-input border border-border rounded-md text-sm"
+                        >
+                          <option value="">-- Select a song --</option>
+                          <optgroup label="Manual Songs">
+                            {manualSongs.map((song) => (
+                              <option key={`manual-${song.id}`} value={`manual-${song.id}`}>
+                                {song.title} ({song.album_name})
+                              </option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Spotify Tracks">
+                            {spotifyTracks.map((track) => (
+                              <option key={track.id} value={track.id}>
+                                {track.name} - {track.artists[0]?.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        </select>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Song Title *</label>
+                          <Input
+                            type="text"
+                            placeholder="Enter song title"
+                            value={newSong.title}
+                            onChange={(e) => setNewSong(prev => ({ ...prev, title: e.target.value }))}
+                            className="bg-input border-border"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Album Name <span className="text-muted-foreground font-normal">(optional, defaults to "Singles")</span></label>
+                          <Input
+                            type="text"
+                            placeholder="Singles"
+                            value={newSong.albumName}
+                            onChange={(e) => setNewSong(prev => ({ ...prev, albumName: e.target.value }))}
+                            className="bg-input border-border"
+                          />
+                        </div>
+                      </>
+                    )}
                     <div>
                       <label className="block text-sm font-medium mb-2">Audio File(s) * <span className="text-muted-foreground font-normal">(select multiple for bulk upload)</span></label>
                       <input
@@ -1583,11 +1692,15 @@ export default function AdminDashboard() {
                     <Button variant="outline" onClick={() => setShowUploadModal(false)}>Cancel</Button>
                     <Button 
                       onClick={handleNewSongUpload} 
-                      disabled={uploadingNewSong || !newSong.title || !newSong.audioFile}
+                      disabled={
+                        uploadingNewSong || 
+                        !newSong.audioFile || 
+                        (newSong.isOverride ? !newSong.overrideTarget : !newSong.title)
+                      }
                       className="gap-2"
                     >
                       {uploadingNewSong ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                      {uploadingNewSong ? "Uploading..." : "Upload"}
+                      {uploadingNewSong ? "Uploading..." : newSong.isOverride ? "Override" : "Upload"}
                     </Button>
                   </div>
                 </div>
