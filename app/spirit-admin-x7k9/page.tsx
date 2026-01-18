@@ -396,22 +396,19 @@ export default function AdminDashboard() {
     setSendStatus(null)
 
     try {
-      const formData = new FormData()
-      formData.append("file", file)
+      // Upload using client-side direct upload
+      const timestamp = Date.now()
+      const random = Math.random().toString(36).substring(7)
+      const extension = file.name.split(".").pop() || "jpg"
+      const filename = `newsletter-${timestamp}-${random}.${extension}`
 
-      const response = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: formData,
+      const blob = await upload(filename, file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/upload-token",
       })
 
-      const data = await response.json()
-
-      if (response.ok) {
-        setPosterUrl(data.url)
-        setSendStatus({ type: "success", message: "Image uploaded!" })
-      } else {
-        setSendStatus({ type: "error", message: data.error || "Upload failed" })
-      }
+      setPosterUrl(blob.url)
+      setSendStatus({ type: "success", message: "Image uploaded!" })
     } catch {
       setSendStatus({ type: "error", message: "Upload failed" })
     } finally {
