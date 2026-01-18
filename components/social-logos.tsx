@@ -42,3 +42,15 @@ export const SoundCloudLogo = ({ size = 24 }: { size?: number }) => (
   </svg>
 )
 
+export const XLogo = ({ size = 24 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden="true"
+  >
+    <path d="M18.9 2H22l-6.86 7.84L23 22h-6.6l-5.17-6.92L5.18 22H2l7.35-8.4L1 2h6.77l4.67 6.25L18.9 2Zm-1.16 18h1.83L6.77 3.9H4.81L17.74 20Z" />
+  </svg>
+)
+

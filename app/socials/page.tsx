@@ -3,7 +3,7 @@ import Navigation from "@/components/navigation"
 import NewsletterForm from "@/components/newsletter-form"
 import Link from "next/link"
 import { ArrowUpRight } from "lucide-react"
-import { SpotifyLogo, InstagramLogo, YouTubeLogo, TikTokLogo, SoundCloudLogo } from "@/components/social-logos"
+import { SpotifyLogo, InstagramLogo, YouTubeLogo, TikTokLogo, SoundCloudLogo, XLogo } from "@/components/social-logos"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -34,6 +34,13 @@ const socialLinks = [
     description: "Short clips & viral content",
     icon: TikTokLogo,
     href: "https://www.tiktok.com/@jonspirit",
+    external: true,
+  },
+  {
+    name: "X",
+    description: "Updates & announcements",
+    icon: XLogo,
+    href: "https://x.com/jonspirit",
     external: true,
   },
   {
