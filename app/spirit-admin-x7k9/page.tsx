@@ -979,7 +979,7 @@ export default function AdminDashboard() {
 
       setShowEventModal(false)
       setEditingEvent(null)
-      setEventForm({ title: "", venue: "", city: "", date: "", time: "", ticket_url: "", description: "", is_past: false })
+      setEventForm({ title: "", venue: "", city: "", date: "", time: "", ticket_url: "", description: "", image_url: "", is_past: false })
     } catch (error) {
       console.error("Save event error:", error)
       setEventStatus({ type: "error", message: "Failed to save event" })
@@ -1026,7 +1026,9 @@ export default function AdminDashboard() {
   // Open new event modal
   const openNewEvent = () => {
     setEditingEvent(null)
-    setEventForm({ title: "", venue: "", city: "", date: "", time: "", ticket_url: "", description: "", is_past: false })
+    setEventForm({ title: "", venue: "", city: "", date: "", time: "", ticket_url: "", description: "", image_url: "", is_past: false })
+    setEventImageFile(null)
+    if (eventImageRef.current) eventImageRef.current.value = ""
     setShowEventModal(true)
   }
 
