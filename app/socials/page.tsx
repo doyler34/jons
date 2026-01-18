@@ -40,7 +40,7 @@ const socialLinks = [
     name: "X",
     description: "Updates & announcements",
     icon: XLogo,
-    href: "https://x.com/jonspirit",
+    href: "https://x.com/jonspiritprime",
     external: true,
   },
   {
