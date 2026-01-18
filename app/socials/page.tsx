@@ -1,27 +1,9 @@
 "use client"
 import Navigation from "@/components/navigation"
 import Link from "next/link"
-import { SpotifyLogo, AppleMusicLogo, InstagramLogo, YouTubeLogo, TikTokLogo, SoundCloudLogo } from "@/components/social-logos"
+import { SpotifyLogo, InstagramLogo, YouTubeLogo, TikTokLogo, SoundCloudLogo } from "@/components/social-logos"
 
 const socialLinks = [
-  {
-    name: "Spotify",
-    description: "Stream all tracks and playlists",
-    icon: SpotifyLogo,
-    bgColor: "bg-gradient-to-br from-[#1DB954] to-[#12833b]",
-    borderClass: "border border-white/10",
-    href: "https://open.spotify.com/artist/2JvA93ASY6Tq4bISN2eh6Z",
-    external: true,
-  },
-  {
-    name: "Apple Music",
-    description: "Stream on Apple Music",
-    icon: AppleMusicLogo,
-    bgColor: "bg-gradient-to-br from-[#FA243C] to-[#FA57A0]",
-    borderClass: "border border-white/10",
-    href: "https://music.apple.com/artist/jonspirit",
-    external: true,
-  },
   {
     name: "Instagram",
     description: "Behind-the-scenes & updates",
@@ -38,6 +20,15 @@ const socialLinks = [
     bgColor: "bg-gradient-to-br from-[#ff0000] to-[#c40000]",
     borderClass: "border border-white/10",
     href: "https://www.youtube.com/@Jonspiritprime",
+    external: true,
+  },
+  {
+    name: "Spotify",
+    description: "Stream all tracks and playlists",
+    icon: SpotifyLogo,
+    bgColor: "bg-gradient-to-br from-[#1DB954] to-[#12833b]",
+    borderClass: "border border-white/10",
+    href: "https://open.spotify.com/artist/2JvA93ASY6Tq4bISN2eh6Z",
     external: true,
   },
   {
