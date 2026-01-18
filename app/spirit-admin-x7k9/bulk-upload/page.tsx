@@ -173,42 +173,49 @@ export default function BulkUploadPage() {
     setStatus(null)
 
     try {
-      const formData = new FormData()
-      bulkFiles.forEach((file) => formData.append("files", file))
+      const uploadedFiles: Array<{
+        originalName: string
+        blobUrl: string
+        filename: string
+        assignTo: "new" | string
+        newTitle: string
+        newAlbum: string
+      }> = []
 
-      const res = await fetch("/api/admin/bulk-upload", {
-        method: "POST",
-        body: formData,
-      })
+      // Upload each file individually using the existing upload endpoint
+      for (let i = 0; i < bulkFiles.length; i++) {
+        const file = bulkFiles[i]
+        setStatus({ type: "success", message: `Uploading ${i + 1}/${bulkFiles.length}: ${file.name}...` })
 
-      if (!res.ok) {
-        const contentType = res.headers.get("content-type")
-        let errorMessage = "Upload failed"
-        
-        if (contentType && contentType.includes("application/json")) {
+        const formData = new FormData()
+        formData.append("file", file)
+
+        const res = await fetch("/api/admin/upload", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (!res.ok) {
           const error = await res.json()
-          errorMessage = error.error || "Upload failed"
-        } else {
-          const textError = await res.text()
-          errorMessage = `Server error: ${textError || res.statusText}`
+          throw new Error(`Failed to upload ${file.name}: ${error.error || "Upload failed"}`)
         }
-        
-        throw new Error(errorMessage)
+
+        const { url, filename } = await res.json()
+
+        uploadedFiles.push({
+          originalName: file.name,
+          blobUrl: url,
+          filename: filename,
+          assignTo: "new",
+          newTitle: file.name.replace(/\.(mp3|wav|m4a|ogg)$/i, ""),
+          newAlbum: "Singles",
+        })
       }
 
-      const data = await res.json()
-
-      const initializedFiles = data.files.map((file: any) => ({
-        ...file,
-        assignTo: "new",
-        newTitle: file.originalName.replace(/\.(mp3|wav|m4a|ogg)$/i, ""),
-        newAlbum: "Singles",
-      }))
-
-      setUploadedFiles(initializedFiles)
+      setUploadedFiles(uploadedFiles)
       setBulkFiles([])
       if (bulkFilesRef.current) bulkFilesRef.current.value = ""
-      setStatus({ type: "success", message: `Successfully uploaded ${data.count} files` })
+      setStatus({ type: "success", message: `Successfully uploaded ${uploadedFiles.length} files` })
     } catch (error) {
       console.error("Bulk upload error:", error)
       setStatus({ type: "error", message: error instanceof Error ? error.message : "Upload failed" })
