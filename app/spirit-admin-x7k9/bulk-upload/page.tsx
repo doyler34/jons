@@ -15,6 +15,32 @@ interface ManualSong {
   created_at: string
 }
 
+interface SpotifyTrack {
+  id: string
+  name: string
+  album: {
+    name: string
+    images: { url: string }[]
+  }
+}
+
+interface SongOverride {
+  id: number
+  spotify_id: string
+  audio_url: string | null
+  cover_url: string | null
+}
+
+interface CombinedSong {
+  id: string
+  title: string
+  album_name: string
+  audio_url: string | null
+  cover_url: string | null
+  type: "manual" | "spotify"
+  spotify_id?: string
+}
+
 interface UploadedFile {
   originalName: string
   blobUrl: string
@@ -28,7 +54,8 @@ export default function BulkUploadPage() {
   const router = useRouter()
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [manualSongs, setManualSongs] = useState<ManualSong[]>([])
-  const [filteredSongs, setFilteredSongs] = useState<ManualSong[]>([])
+  const [allSongs, setAllSongs] = useState<CombinedSong[]>([])
+  const [filteredSongs, setFilteredSongs] = useState<CombinedSong[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [bulkFiles, setBulkFiles] = useState<File[]>([])
@@ -44,18 +71,18 @@ export default function BulkUploadPage() {
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
-      setFilteredSongs(manualSongs)
+      setFilteredSongs(allSongs)
     } else {
       const query = searchQuery.toLowerCase()
       setFilteredSongs(
-        manualSongs.filter(
+        allSongs.filter(
           (song) =>
             song.title.toLowerCase().includes(query) ||
             song.album_name.toLowerCase().includes(query)
         )
       )
     }
-  }, [searchQuery, manualSongs])
+  }, [searchQuery, allSongs])
 
   const checkAuth = async () => {
     try {
@@ -74,20 +101,62 @@ export default function BulkUploadPage() {
   const fetchManualSongs = async () => {
     setLoading(true)
     try {
-      const res = await fetch("/api/songs/manual")
-      if (res.ok) {
-        const data = await res.json()
-        console.log("Fetched songs from database:", data)
-        setManualSongs(data.songs || [])
-        setFilteredSongs(data.songs || [])
-      } else {
-        console.error("Failed to fetch songs, status:", res.status)
-        const errorData = await res.text()
-        console.error("Error response:", errorData)
-        setStatus({ type: "error", message: `Failed to fetch songs: ${res.status}` })
-      }
+      // Fetch manual songs, Spotify tracks, and overrides
+      const [manualRes, spotifyRes, overridesRes] = await Promise.all([
+        fetch("/api/songs/manual"),
+        fetch("/api/spotify"),
+        fetch("/api/songs/overrides")
+      ])
+
+      const manualData = manualRes.ok ? await manualRes.json() : { songs: [] }
+      const spotifyData = spotifyRes.ok ? await spotifyRes.json() : { albumsWithTracks: [] }
+      const overridesData = overridesRes.ok ? await overridesRes.json() : { overrides: {} }
+
+      console.log("Fetched manual songs:", manualData)
+      console.log("Fetched Spotify tracks:", spotifyData)
+      console.log("Fetched overrides:", overridesData)
+
+      setManualSongs(manualData.songs || [])
+
+      // Combine manual songs and Spotify tracks with custom audio
+      const combined: CombinedSong[] = []
+
+      // Add manual songs
+      manualData.songs?.forEach((song: ManualSong) => {
+        combined.push({
+          id: `manual-${song.id}`,
+          title: song.title,
+          album_name: song.album_name,
+          audio_url: song.audio_url,
+          cover_url: song.cover_url,
+          type: "manual"
+        })
+      })
+
+      // Add Spotify tracks that have custom audio
+      const overrides = overridesData.overrides || {}
+      spotifyData.albumsWithTracks?.forEach((album: any) => {
+        album.tracks?.forEach((track: SpotifyTrack) => {
+          const override = overrides[track.id]
+          if (override && override.audio_url) {
+            combined.push({
+              id: `spotify-${track.id}`,
+              title: track.name,
+              album_name: track.album.name,
+              audio_url: override.audio_url,
+              cover_url: override.cover_url || track.album.images[0]?.url || null,
+              type: "spotify",
+              spotify_id: track.id
+            })
+          }
+        })
+      })
+
+      console.log("Combined songs:", combined)
+      setAllSongs(combined)
+      setFilteredSongs(combined)
     } catch (error) {
-      console.error("Failed to fetch manual songs:", error)
+      console.error("Failed to fetch songs:", error)
       setStatus({ type: "error", message: `Error: ${error}` })
     } finally {
       setLoading(false)
@@ -149,6 +218,7 @@ export default function BulkUploadPage() {
 
       for (const file of uploadedFiles) {
         if (file.assignTo === "new") {
+          // Create new manual song
           const res = await fetch("/api/songs/manual", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -165,17 +235,40 @@ export default function BulkUploadPage() {
             results.push(data.song)
           }
         } else {
-          const res = await fetch(`/api/songs/manual`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: file.assignTo,
-              audio_url: file.blobUrl,
-            }),
-          })
+          // Assign to existing song (manual or Spotify track)
+          const songId = file.assignTo
+          const isSpotifyTrack = songId.startsWith("spotify-")
 
-          if (res.ok) {
-            results.push({ id: file.assignTo })
+          if (isSpotifyTrack) {
+            // Update Spotify track override
+            const spotifyId = songId.replace("spotify-", "")
+            const res = await fetch(`/api/songs/overrides`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                spotify_id: spotifyId,
+                audio_url: file.blobUrl,
+              }),
+            })
+
+            if (res.ok) {
+              results.push({ id: spotifyId })
+            }
+          } else {
+            // Update manual song
+            const actualId = songId.replace("manual-", "")
+            const res = await fetch(`/api/songs/manual`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                id: actualId,
+                audio_url: file.blobUrl,
+              }),
+            })
+
+            if (res.ok) {
+              results.push({ id: actualId })
+            }
           }
         }
       }
@@ -192,14 +285,26 @@ export default function BulkUploadPage() {
     }
   }
 
-  const deleteSong = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this song?")) return
+  const deleteSong = async (song: CombinedSong) => {
+    if (!confirm(`Are you sure you want to delete "${song.title}"?`)) return
 
     try {
-      const res = await fetch(`/api/songs/manual?id=${id}`, { method: "DELETE" })
-      if (res.ok) {
-        setManualSongs((prev) => prev.filter((song) => song.id !== id))
-        setStatus({ type: "success", message: "Song deleted" })
+      if (song.type === "manual") {
+        const actualId = song.id.replace("manual-", "")
+        const res = await fetch(`/api/songs/manual?id=${actualId}`, { method: "DELETE" })
+        if (res.ok) {
+          setAllSongs((prev) => prev.filter((s) => s.id !== song.id))
+          setStatus({ type: "success", message: "Song deleted" })
+        }
+      } else if (song.type === "spotify" && song.spotify_id) {
+        // For Spotify tracks, remove the audio override
+        const res = await fetch(`/api/songs/overrides?spotify_id=${song.spotify_id}&field=audio`, {
+          method: "DELETE"
+        })
+        if (res.ok) {
+          setAllSongs((prev) => prev.filter((s) => s.id !== song.id))
+          setStatus({ type: "success", message: "Audio removed from Spotify track" })
+        }
       }
     } catch (error) {
       setStatus({ type: "error", message: "Failed to delete song" })
@@ -382,19 +487,19 @@ export default function BulkUploadPage() {
                           checked={file.assignTo !== "new"}
                           onChange={() => {
                             const updated = [...uploadedFiles]
-                            updated[idx].assignTo = manualSongs[0]?.id || "new"
+                            updated[idx].assignTo = allSongs[0]?.id || "new"
                             setUploadedFiles(updated)
                           }}
                           className="text-purple-600"
-                          disabled={manualSongs.length === 0}
+                          disabled={allSongs.length === 0}
                         />
                         <span className="text-sm font-medium">
                           Assign to Existing Song
-                          {manualSongs.length === 0 && " (No songs in database)"}
+                          {allSongs.length === 0 && " (No songs in database)"}
                         </span>
                       </label>
 
-                      {file.assignTo !== "new" && manualSongs.length > 0 && (
+                      {file.assignTo !== "new" && allSongs.length > 0 && (
                         <div className="ml-6">
                           <select
                             value={file.assignTo}
@@ -405,9 +510,9 @@ export default function BulkUploadPage() {
                             }}
                             className="w-full px-3 py-2 bg-input border border-border rounded-md text-sm"
                           >
-                            {manualSongs.map((song) => (
+                            {allSongs.map((song) => (
                               <option key={song.id} value={song.id}>
-                                {song.title} - {song.album_name}
+                                {song.title} - {song.album_name} ({song.type === "spotify" ? "Spotify" : "Manual"})
                                 {!song.audio_url && " (No Audio)"}
                               </option>
                             ))}
@@ -434,7 +539,7 @@ export default function BulkUploadPage() {
         {/* Database Songs Section */}
         <div className="bg-card border border-border rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">All Songs in Database ({manualSongs.length})</h2>
+            <h2 className="text-xl font-bold">All Songs in Database ({allSongs.length})</h2>
             <div className="relative w-64">
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -450,9 +555,9 @@ export default function BulkUploadPage() {
           {filteredSongs.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground mb-4">
-                {manualSongs.length === 0 ? "No songs in database yet" : "No songs match your search"}
+                {allSongs.length === 0 ? "No songs in database yet" : "No songs match your search"}
               </p>
-              {manualSongs.length === 0 && (
+              {allSongs.length === 0 && (
                 <div className="text-sm text-muted-foreground space-y-2">
                   <p>Debug: Check browser console for errors</p>
                   <p>Or visit: <code className="bg-muted px-2 py-1 rounded">/api/debug/database</code></p>
@@ -474,15 +579,26 @@ export default function BulkUploadPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{song.title}</p>
                     <p className="text-sm text-muted-foreground truncate">{song.album_name}</p>
-                    {song.audio_url ? (
-                      <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded mt-1 inline-block">
-                        ✓ Has Audio
-                      </span>
-                    ) : (
-                      <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded mt-1 inline-block">
-                        ⚠ No Audio
-                      </span>
-                    )}
+                    <div className="flex gap-2 mt-1">
+                      {song.audio_url ? (
+                        <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">
+                          ✓ Has Audio
+                        </span>
+                      ) : (
+                        <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded">
+                          ⚠ No Audio
+                        </span>
+                      )}
+                      {song.type === "spotify" ? (
+                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">
+                          Spotify Track
+                        </span>
+                      ) : (
+                        <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">
+                          Manual Upload
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     {song.audio_url && (
@@ -498,8 +614,9 @@ export default function BulkUploadPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => deleteSong(song.id)}
+                      onClick={() => deleteSong(song)}
                       className="gap-1 text-red-400 hover:text-red-300"
+                      title={song.type === "spotify" ? "Remove audio" : "Delete song"}
                     >
                       <Trash2 size={14} />
                     </Button>
