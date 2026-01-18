@@ -7,6 +7,10 @@ import { verifyAdminSessionToken } from "@/lib/admin-session"
 export const runtime = "nodejs"
 export const maxDuration = 60
 
+// Increase body size limit for file uploads
+export const dynamic = "force-dynamic"
+export const fetchCache = "force-no-store"
+
 export async function POST(request: NextRequest) {
   // Check authentication
   const cookieStore = await cookies()

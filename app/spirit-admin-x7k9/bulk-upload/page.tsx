@@ -182,8 +182,18 @@ export default function BulkUploadPage() {
       })
 
       if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || "Upload failed")
+        const contentType = res.headers.get("content-type")
+        let errorMessage = "Upload failed"
+        
+        if (contentType && contentType.includes("application/json")) {
+          const error = await res.json()
+          errorMessage = error.error || "Upload failed"
+        } else {
+          const textError = await res.text()
+          errorMessage = `Server error: ${textError || res.statusText}`
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const data = await res.json()
