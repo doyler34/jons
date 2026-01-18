@@ -77,11 +77,18 @@ export default function BulkUploadPage() {
       const res = await fetch("/api/songs/manual")
       if (res.ok) {
         const data = await res.json()
+        console.log("Fetched songs from database:", data)
         setManualSongs(data.songs || [])
         setFilteredSongs(data.songs || [])
+      } else {
+        console.error("Failed to fetch songs, status:", res.status)
+        const errorData = await res.text()
+        console.error("Error response:", errorData)
+        setStatus({ type: "error", message: `Failed to fetch songs: ${res.status}` })
       }
     } catch (error) {
       console.error("Failed to fetch manual songs:", error)
+      setStatus({ type: "error", message: `Error: ${error}` })
     } finally {
       setLoading(false)
     }
@@ -441,8 +448,16 @@ export default function BulkUploadPage() {
           </div>
 
           {filteredSongs.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              {manualSongs.length === 0 ? "No songs in database yet" : "No songs match your search"}
+            <div className="text-center py-12">
+              <p className="text-muted-foreground mb-4">
+                {manualSongs.length === 0 ? "No songs in database yet" : "No songs match your search"}
+              </p>
+              {manualSongs.length === 0 && (
+                <div className="text-sm text-muted-foreground space-y-2">
+                  <p>Debug: Check browser console for errors</p>
+                  <p>Or visit: <code className="bg-muted px-2 py-1 rounded">/api/debug/database</code></p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
