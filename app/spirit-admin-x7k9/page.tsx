@@ -18,6 +18,7 @@ interface Subscriber {
 interface SpotifyTrack {
   id: string
   name: string
+  artists?: { name: string }[]
   duration_ms: number
   preview_url: string | null
   album: {
@@ -1633,7 +1634,7 @@ export default function AdminDashboard() {
                           <optgroup label="Spotify Tracks">
                             {albums.flatMap(album => album.tracks || []).map((track) => (
                               <option key={track.id} value={track.id}>
-                                {track.name} - {track.artists[0]?.name}
+                                {track.name}{track.artists?.[0]?.name ? ` - ${track.artists[0].name}` : ""}
                               </option>
                             ))}
                           </optgroup>
