@@ -3,14 +3,9 @@ import { put } from "@vercel/blob"
 import { cookies } from "next/headers"
 import { verifyAdminSessionToken } from "@/lib/admin-session"
 
-// Allow up to 50MB for bulk uploads (Vercel Pro limit)
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "50mb",
-    },
-  },
-}
+// Configure route for large file uploads (App Router)
+export const runtime = "nodejs"
+export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
   // Check authentication
