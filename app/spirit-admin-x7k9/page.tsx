@@ -1185,14 +1185,7 @@ export default function AdminDashboard() {
                   className="gap-2 bg-primary"
                 >
                   <Plus size={16} />
-                  Upload New Song
-                </Button>
-                <Button 
-                  onClick={() => router.push("/spirit-admin-x7k9/bulk-upload")} 
-                  className="gap-2 bg-purple-600 hover:bg-purple-700"
-                >
-                  <Upload size={16} />
-                  Bulk Upload
+                  Upload Song(s)
                 </Button>
                 <Button 
                   onClick={() => fetchMusic(true)} 
@@ -1494,12 +1487,12 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* Upload New Song Modal */}
+            {/* Upload Song(s) Modal */}
             {showUploadModal && (
               <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
                 <div className="bg-card border border-border rounded-lg w-full max-w-md">
                   <div className="p-6 border-b border-border flex items-center justify-between">
-                    <h3 className="text-lg font-bold">Upload New Song</h3>
+                    <h3 className="text-lg font-bold">Upload Song(s)</h3>
                     <button onClick={() => setShowUploadModal(false)} className="text-muted-foreground hover:text-foreground">
                       <X size={20} />
                     </button>
@@ -1526,16 +1519,29 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Audio File *</label>
+                      <label className="block text-sm font-medium mb-2">Audio File(s) * <span className="text-muted-foreground font-normal">(select multiple for bulk upload)</span></label>
                       <input
                         ref={newSongAudioRef}
                         type="file"
                         accept="audio/*"
-                        onChange={(e) => setNewSong(prev => ({ ...prev, audioFile: e.target.files?.[0] || null }))}
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || [])
+                          if (files.length === 1) {
+                            setNewSong(prev => ({ ...prev, audioFile: files[0] }))
+                          } else if (files.length > 1) {
+                            setNewSong(prev => ({ ...prev, audioFile: files[0] }))
+                            // Show info about multiple files
+                            setMusicStatus({ type: "success", message: `${files.length} files selected - will create separate songs` })
+                          }
+                        }}
                         className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
                       />
                       {newSong.audioFile && (
                         <p className="text-xs text-green-400 mt-1">✓ {newSong.audioFile.name}</p>
+                      )}
+                      {newSongAudioRef.current?.files && newSongAudioRef.current.files.length > 1 && (
+                        <p className="text-xs text-blue-400 mt-1">+ {newSongAudioRef.current.files.length - 1} more files</p>
                       )}
                     </div>
                     <div>
@@ -1560,7 +1566,7 @@ export default function AdminDashboard() {
                       className="gap-2"
                     >
                       {uploadingNewSong ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                      {uploadingNewSong ? "Uploading..." : "Upload Song"}
+                      {uploadingNewSong ? "Uploading..." : "Upload"}
                     </Button>
                   </div>
                 </div>
