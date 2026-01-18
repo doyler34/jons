@@ -109,7 +109,14 @@ export default function AdminDashboard() {
   const [selectedFilter, setSelectedFilter] = useState<string>("all") // "all", "singles", or album id
   const [searchQuery, setSearchQuery] = useState("")
   const [showUploadModal, setShowUploadModal] = useState(false)
-  const [newSong, setNewSong] = useState({ title: "", albumName: "", audioFile: null as File | null, coverFile: null as File | null })
+  const [newSong, setNewSong] = useState({ 
+    title: "", 
+    albumName: "", 
+    audioFile: null as File | null, 
+    coverFile: null as File | null,
+    isOverride: false,
+    overrideTarget: null as string | null
+  })
   const [uploadingNewSong, setUploadingNewSong] = useState(false)
   const [manualSongs, setManualSongs] = useState<ManualSong[]>([])
   const newSongAudioRef = useRef<HTMLInputElement>(null)
@@ -157,8 +164,11 @@ export default function AdminDashboard() {
     time: "",
     ticket_url: "",
     description: "",
+    image_url: "",
     is_past: false,
   })
+  const [eventImageFile, setEventImageFile] = useState<File | null>(null)
+  const eventImageRef = useRef<HTMLInputElement>(null)
   const [eventStatus, setEventStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [savingEvent, setSavingEvent] = useState(false)
 
@@ -1005,8 +1015,11 @@ export default function AdminDashboard() {
       time: event.time || "",
       ticket_url: event.ticket_url || "",
       description: event.description || "",
+      image_url: event.image_url || "",
       is_past: event.is_past,
     })
+    setEventImageFile(null)
+    if (eventImageRef.current) eventImageRef.current.value = ""
     setShowEventModal(true)
   }
 
@@ -2437,6 +2450,22 @@ export default function AdminDashboard() {
                           className="bg-input border-border"
                         />
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Event Image <span className="text-muted-foreground font-normal">(optional)</span></label>
+                      <input
+                        ref={eventImageRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setEventImageFile(e.target.files?.[0] || null)}
+                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-muted file:text-muted-foreground hover:file:bg-muted/80 file:cursor-pointer cursor-pointer"
+                      />
+                      {eventImageFile && (
+                        <p className="text-xs text-green-400 mt-1">✓ {eventImageFile.name}</p>
+                      )}
+                      {!eventImageFile && eventForm.image_url && (
+                        <p className="text-xs text-blue-400 mt-1">Current image set</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">Ticket Link <span className="text-muted-foreground font-normal">(optional)</span></label>
