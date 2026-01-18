@@ -835,7 +835,7 @@ export default function AdminDashboard() {
           
           if (target.startsWith("manual-")) {
             // Override manual song
-            const actualId = target.replace("manual-", "")
+            const actualId = parseInt(target.replace("manual-", ""))
             const saveRes = await fetch("/api/songs/manual", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -849,7 +849,7 @@ export default function AdminDashboard() {
             if (!saveRes.ok) throw new Error("Failed to override manual song")
             
             const { song } = await saveRes.json()
-            setManualSongs(prev => prev.map(s => s.id === parseInt(actualId) ? song : s))
+            setManualSongs(prev => prev.map(s => s.id === actualId ? song : s))
           } else {
             // Override Spotify track
             const saveRes = await fetch("/api/songs/overrides", {
