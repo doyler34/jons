@@ -3,6 +3,28 @@ import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { verifyAdminSessionToken } from "@/lib/admin-session"
 
+function normalizeDateInput(raw: unknown): string | null {
+  if (typeof raw !== "string") return null
+  let s = raw.trim()
+  if (!s) return null
+
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0, 10)
+
+  if (/^\+\d{6}-\d{2}-\d{2}$/.test(s)) s = s.slice(1)
+  if (/^\d{6}-\d{2}-\d{2}$/.test(s)) {
+    const year = s.slice(0, 4)
+    const month = s.slice(4, 6)
+    const day = s.slice(10, 12)
+    return `${year}-${month}-${day}`
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+
+  const d = new Date(s)
+  if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10)
+  return null
+}
+
 // Check admin auth
 async function isAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies()
@@ -48,7 +70,8 @@ export async function PUT(
     const body = await request.json()
     const { title, venue, city, date, time, ticket_url, description, image_url, is_past } = body
 
-    if (!title || !venue || !city || !date) {
+    const normalizedDate = normalizeDateInput(date)
+    if (!title || !venue || !city || !normalizedDate) {
       return NextResponse.json(
         { error: "Title, venue, city, and date are required" },
         { status: 400 }
@@ -61,7 +84,7 @@ export async function PUT(
         title = ${title},
         venue = ${venue},
         city = ${city},
-        date = ${date},
+        date = ${normalizedDate},
         time = ${time || null},
         ticket_url = ${ticket_url || null},
         description = ${description || null},

@@ -35,6 +35,30 @@ async function ensureTable() {
   `
 }
 
+function normalizeDateInput(raw: unknown): string | null {
+  if (typeof raw !== "string") return null
+  let s = raw.trim()
+  if (!s) return null
+
+  // ISO string -> YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0, 10)
+
+  // Sometimes we get "+202501-01-24" or "202501-01-24" (year+month duplicated)
+  if (/^\+\d{6}-\d{2}-\d{2}$/.test(s)) s = s.slice(1)
+  if (/^\d{6}-\d{2}-\d{2}$/.test(s)) {
+    const year = s.slice(0, 4)
+    const month = s.slice(4, 6)
+    const day = s.slice(10, 12)
+    return `${year}-${month}-${day}`
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+
+  const d = new Date(s)
+  if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10)
+  return null
+}
+
 // GET - Fetch all events
 export async function GET() {
   try {
@@ -68,7 +92,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title, venue, city, date, time, ticket_url, description, image_url, is_past } = body
 
-    if (!title || !venue || !city || !date) {
+    const normalizedDate = normalizeDateInput(date)
+    if (!title || !venue || !city || !normalizedDate) {
       return NextResponse.json(
         { error: "Title, venue, city, and date are required" },
         { status: 400 }
@@ -81,7 +106,7 @@ export async function POST(request: NextRequest) {
         ${title}, 
         ${venue}, 
         ${city}, 
-        ${date}, 
+        ${normalizedDate}, 
         ${time || null}, 
         ${ticket_url || null}, 
         ${description || null}, 

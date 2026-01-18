@@ -173,6 +173,21 @@ export default function AdminDashboard() {
   const [eventStatus, setEventStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [savingEvent, setSavingEvent] = useState(false)
 
+  const normalizeEventDateForInput = (raw: string) => {
+    const s0 = (raw || "").trim()
+    if (!s0) return ""
+    if (/^\d{4}-\d{2}-\d{2}T/.test(s0)) return s0.slice(0, 10)
+    let s = s0
+    if (/^\+\d{6}-\d{2}-\d{2}$/.test(s)) s = s.slice(1)
+    if (/^\d{6}-\d{2}-\d{2}$/.test(s)) {
+      return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(10, 12)}`
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+    const d = new Date(s)
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10)
+    return ""
+  }
+
   // Settings state
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({})
   const [loadingSettings, setLoadingSettings] = useState(false)
@@ -1041,7 +1056,7 @@ export default function AdminDashboard() {
       title: event.title,
       venue: event.venue,
       city: event.city,
-      date: event.date.split("T")[0],
+      date: normalizeEventDateForInput(event.date),
       time: event.time || "",
       ticket_url: event.ticket_url || "",
       description: event.description || "",
