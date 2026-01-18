@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Upload, Music, Check, X, Loader2, ArrowLeft, Download, Trash2, Search } from "lucide-react"
+import { upload } from "@vercel/blob/client"
 
 interface ManualSong {
   id: string
@@ -182,29 +183,26 @@ export default function BulkUploadPage() {
         newAlbum: string
       }> = []
 
-      // Upload each file individually using the existing upload endpoint
+      // Upload each file directly to Vercel Blob (client-side)
       for (let i = 0; i < bulkFiles.length; i++) {
         const file = bulkFiles[i]
         setStatus({ type: "success", message: `Uploading ${i + 1}/${bulkFiles.length}: ${file.name}...` })
 
-        const formData = new FormData()
-        formData.append("file", file)
+        // Generate unique filename
+        const timestamp = Date.now()
+        const random = Math.random().toString(36).substring(7)
+        const extension = file.name.split(".").pop() || "mp3"
+        const filename = `song-${timestamp}-${random}.${extension}`
 
-        const res = await fetch("/api/admin/upload", {
-          method: "POST",
-          body: formData,
+        // Upload directly to Vercel Blob
+        const blob = await upload(filename, file, {
+          access: "public",
+          handleUploadUrl: "/api/admin/upload-token",
         })
-
-        if (!res.ok) {
-          const error = await res.json()
-          throw new Error(`Failed to upload ${file.name}: ${error.error || "Upload failed"}`)
-        }
-
-        const { url, filename } = await res.json()
 
         uploadedFiles.push({
           originalName: file.name,
-          blobUrl: url,
+          blobUrl: blob.url,
           filename: filename,
           assignTo: "new",
           newTitle: file.name.replace(/\.(mp3|wav|m4a|ogg)$/i, ""),
