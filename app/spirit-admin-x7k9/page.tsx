@@ -234,27 +234,23 @@ export default function AdminDashboard() {
     setMusicStatus(null)
 
     try {
-      const formData = new FormData()
-      formData.append("file", file)
+      // Upload using client-side direct upload
+      const timestamp = Date.now()
+      const random = Math.random().toString(36).substring(7)
+      const extension = file.name.split(".").pop() || (type === "audio" ? "mp3" : "jpg")
+      const filename = `${type}-${timestamp}-${random}.${extension}`
 
-      const uploadRes = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: formData,
+      const blob = await upload(filename, file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/upload-token",
       })
-
-      if (!uploadRes.ok) {
-        const errorData = await uploadRes.json()
-        throw new Error(errorData.error || "Upload failed")
-      }
-
-      const { url } = await uploadRes.json()
 
       const saveRes = await fetch("/api/songs/overrides", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           spotify_id: spotifyId,
-          [type === "audio" ? "audio_url" : "cover_url"]: url,
+          [type === "audio" ? "audio_url" : "cover_url"]: blob.url,
         }),
       })
 
