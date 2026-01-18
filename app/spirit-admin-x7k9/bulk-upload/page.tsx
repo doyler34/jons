@@ -605,7 +605,7 @@ export default function BulkUploadPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => downloadFile(song.audio_url, `${song.title}.mp3`)}
+                        onClick={() => song.audio_url && downloadFile(song.audio_url, `${song.title}.mp3`)}
                         className="gap-1"
                       >
                         <Download size={14} />
