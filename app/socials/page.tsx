@@ -1,15 +1,17 @@
 "use client"
 import Navigation from "@/components/navigation"
+import NewsletterForm from "@/components/newsletter-form"
 import Link from "next/link"
+import { ArrowUpRight } from "lucide-react"
 import { SpotifyLogo, InstagramLogo, YouTubeLogo, TikTokLogo, SoundCloudLogo } from "@/components/social-logos"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 
 const socialLinks = [
   {
     name: "Instagram",
     description: "Behind-the-scenes & updates",
     icon: InstagramLogo,
-    bgColor: "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400",
-    borderClass: "border border-white/10",
     href: "/instagram",
     external: false,
   },
@@ -17,8 +19,6 @@ const socialLinks = [
     name: "YouTube",
     description: "Music videos & visual content",
     icon: YouTubeLogo,
-    bgColor: "bg-gradient-to-br from-[#ff0000] to-[#c40000]",
-    borderClass: "border border-white/10",
     href: "https://www.youtube.com/@Jonspiritprime",
     external: true,
   },
@@ -26,8 +26,6 @@ const socialLinks = [
     name: "Spotify",
     description: "Stream all tracks and playlists",
     icon: SpotifyLogo,
-    bgColor: "bg-gradient-to-br from-[#1DB954] to-[#12833b]",
-    borderClass: "border border-white/10",
     href: "https://open.spotify.com/artist/2JvA93ASY6Tq4bISN2eh6Z",
     external: true,
   },
@@ -35,8 +33,6 @@ const socialLinks = [
     name: "TikTok",
     description: "Short clips & viral content",
     icon: TikTokLogo,
-    bgColor: "bg-gradient-to-br from-[#00F2EA] via-[#FF0050] to-[#000000]",
-    borderClass: "border border-[#00F2EA]/40",
     href: "https://www.tiktok.com/@jonspirit",
     external: true,
   },
@@ -44,8 +40,6 @@ const socialLinks = [
     name: "SoundCloud",
     description: "Exclusive & unreleased tracks",
     icon: SoundCloudLogo,
-    bgColor: "bg-gradient-to-br from-[#FF7E00] to-[#FF5500]",
-    borderClass: "border border-white/10",
     href: "https://soundcloud.com/jonspirit",
     external: true,
   },
@@ -56,65 +50,92 @@ export default function SocialsPage() {
     <div className="min-h-screen bg-background pb-24">
       <Navigation />
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-16 py-12">
-        <h1 className="text-5xl md:text-6xl font-black mb-2 text-foreground tracking-tighter animate-fade-in-up">
-          SOCIALS
-        </h1>
-        <p className="text-primary text-lg mb-12 font-semibold animate-fade-in-up stagger-2">
-          Follow Jon Spirit on all platforms
-        </p>
+      <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-16 py-6 md:py-12">
+        {/* Hero */}
+        <section className="mb-8 md:mb-12">
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/15 via-card to-card border border-border">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.16),transparent_55%)]" />
+            <div className="relative p-6 md:p-10 lg:p-12">
+              <h1 className="text-3xl sm:text-4xl md:text-6xl font-black mb-2 text-foreground tracking-tighter">
+                CONNECT
+              </h1>
+              <p className="text-muted-foreground text-base md:text-lg max-w-2xl">
+                Follow Jon Spirit across platforms for drops, behind-the-scenes, and new visuals.
+              </p>
+            </div>
+          </div>
+        </section>
 
-        <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-6 max-w-2xl mx-auto">
-          {socialLinks.map((social, index) => {
-            const IconComponent = social.icon
-            const cardContent = (
-              <div className="flex flex-col items-center justify-center text-center space-y-2 md:space-y-4">
-                <div className="p-3 md:p-4 bg-black/20 rounded-xl group-hover:bg-black/30 transition-colors">
-                  <IconComponent size={32} />
-                </div>
-                <div>
-                  <h3 className="text-sm md:text-xl font-bold text-white mb-1">{social.name}</h3>
-                  <p className="text-xs md:text-sm text-white/80 hidden md:block">{social.description}</p>
-                </div>
-              </div>
-            )
-            const cardClass = `group rounded-xl p-4 md:p-8 ${social.bgColor} text-white shadow-md shadow-black/25 ${social.borderClass || "border border-white/10"} hover:shadow-lg hover:shadow-white/10 transition-all transform hover:scale-105 active:scale-95`
-            
-            return social.external ? (
-              <a
-                key={index}
-                href={social.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cardClass}
-              >
-                {cardContent}
-              </a>
-            ) : (
-              <Link
-                key={index}
-                href={social.href}
-                className={cardClass}
-              >
-                {cardContent}
-              </Link>
-            )
-          })}
-        </div>
+        {/* Links */}
+        <section className="mb-10 md:mb-16">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {socialLinks.map((social) => {
+              const Icon = social.icon
+              const cta = social.external ? (
+                <a href={social.href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${social.name}`}>
+                  Open {social.name}
+                </a>
+              ) : (
+                <Link href={social.href} aria-label={`Open ${social.name}`}>
+                  Open {social.name}
+                </Link>
+              )
 
-        <div className="mt-16 bg-card rounded-lg p-12 border border-border text-center max-w-2xl mx-auto animate-fade-in-up stagger-5">
-          <h2 className="text-2xl font-bold text-foreground mb-4">JOIN THE SPIRIT REALM</h2>
-          <p className="text-muted-foreground mb-6">
-            Subscribe to Jon Spirit's mailing list for exclusive drops, behind-the-scenes content, and early access to
-            new releases.
-          </p>
-          <a
-            href="#"
-            className="inline-block px-8 py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg transition-all duration-300 hover-glow"
-          >
-            SUBSCRIBE NOW
-          </a>
-        </div>
+              return (
+                <Card
+                  key={social.name}
+                  className="group relative overflow-hidden rounded-2xl border-border bg-card/80 py-0 transition-colors hover:border-primary/40"
+                >
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(220,38,38,0.16),transparent_55%)] opacity-50 transition-opacity group-hover:opacity-100" />
+                  <CardContent className="relative p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                        <div className="rounded-2xl bg-primary/10 ring-1 ring-primary/15 p-3 text-primary">
+                          <Icon size={28} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h2 className="text-lg font-bold text-foreground">{social.name}</h2>
+                            {social.external && (
+                              <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                                External
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">{social.description}</p>
+                        </div>
+                      </div>
+
+                      <ArrowUpRight className="size-5 text-muted-foreground transition-colors group-hover:text-primary" />
+                    </div>
+
+                    <div className="mt-5">
+                      <Button asChild className="rounded-full">
+                        {cta}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* Newsletter */}
+        <section>
+          <div className="relative overflow-hidden rounded-2xl bg-card border border-border p-6 md:p-10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_10%,rgba(220,38,38,0.18),transparent_55%)]" />
+            <div className="relative">
+              <h2 className="text-2xl md:text-3xl font-black text-foreground mb-3 tracking-tight">
+                JOIN THE SPIRIT REALM
+              </h2>
+              <p className="text-muted-foreground mb-6 max-w-2xl">
+                Get emails for exclusive drops, behind-the-scenes, and early access to new releases.
+              </p>
+              <NewsletterForm />
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   )
