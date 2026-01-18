@@ -105,9 +105,11 @@ export default function MusicPage() {
         let albumsList: SpotifyAlbum[] = spotifyData.albumsWithTracks || []
         
         // Group manual songs by album_name and create virtual albums
-        if (manualSongsData.songs && manualSongsData.songs.length > 0) {
+        // Only show songs that have audio
+        const songsWithAudio = manualSongsData.songs?.filter((song: ManualSong) => song.audio_url) || []
+        if (songsWithAudio.length > 0) {
           const manualSongsByAlbum: Record<string, ManualSong[]> = {}
-          manualSongsData.songs.forEach((song: ManualSong) => {
+          songsWithAudio.forEach((song: ManualSong) => {
             const albumName = song.album_name || "Singles"
             if (!manualSongsByAlbum[albumName]) {
               manualSongsByAlbum[albumName] = []

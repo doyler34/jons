@@ -17,16 +17,26 @@ async function isAuthenticated() {
 // GET - Fetch all manual songs
 export async function GET() {
   try {
-    // Create table if it doesn't exist
+    // Create table if it doesn't exist - audio_url is now optional
     await sql`
       CREATE TABLE IF NOT EXISTS manual_songs (
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         album_name VARCHAR(255) DEFAULT 'Singles',
-        audio_url TEXT NOT NULL,
+        audio_url TEXT,
         cover_url TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       )
+    `
+
+    // Alter existing table to make audio_url nullable if it exists
+    await sql`
+      DO $$ 
+      BEGIN 
+        ALTER TABLE manual_songs ALTER COLUMN audio_url DROP NOT NULL;
+      EXCEPTION
+        WHEN others THEN NULL;
+      END $$;
     `
 
     const result = await sql`
@@ -52,13 +62,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { id, title, album_name, audio_url, cover_url } = body
 
-    // Ensure table exists
+    // Ensure table exists - audio_url is optional
     await sql`
       CREATE TABLE IF NOT EXISTS manual_songs (
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         album_name VARCHAR(255) DEFAULT 'Singles',
-        audio_url TEXT NOT NULL,
+        audio_url TEXT,
         cover_url TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       )
@@ -103,8 +113,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Otherwise, create new song
-    if (!title || !audio_url) {
-      return NextResponse.json({ error: "Title and audio_url are required" }, { status: 400 })
+    if (!title) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
     }
 
     const result = await sql`
