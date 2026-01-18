@@ -804,13 +804,16 @@ export default function AdminDashboard() {
         // Upload cover if provided (only for first file)
         let coverUrl = null
         if (i === 0 && newSong.coverFile) {
-          const coverFormData = new FormData()
-          coverFormData.append("file", newSong.coverFile)
-          const coverRes = await fetch("/api/admin/upload", { method: "POST", body: coverFormData })
-          if (coverRes.ok) {
-            const { url } = await coverRes.json()
-            coverUrl = url
-          }
+          const coverTimestamp = Date.now()
+          const coverRandom = Math.random().toString(36).substring(7)
+          const coverExtension = newSong.coverFile.name.split(".").pop() || "jpg"
+          const coverFilename = `cover-${coverTimestamp}-${coverRandom}.${coverExtension}`
+          
+          const coverBlob = await upload(coverFilename, newSong.coverFile, {
+            access: "public",
+            handleUploadUrl: "/api/admin/upload-token",
+          })
+          coverUrl = coverBlob.url
         }
 
         // Save to database
