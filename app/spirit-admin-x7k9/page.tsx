@@ -835,7 +835,7 @@ export default function AdminDashboard() {
           
           if (target.startsWith("manual-")) {
             // Override manual song
-            const actualId = parseInt(target.replace("manual-", ""))
+            const actualId = target.replace("manual-", "")
             const saveRes = await fetch("/api/songs/manual", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
