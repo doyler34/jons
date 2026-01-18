@@ -262,7 +262,7 @@ export default function AdminDashboard() {
         ...prev,
         [spotifyId]: {
           ...prev[spotifyId],
-          [type === "audio" ? "audio_url" : "cover_url"]: url,
+          [type === "audio" ? "audio_url" : "cover_url"]: blob.url,
         },
       }))
 
