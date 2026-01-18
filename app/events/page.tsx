@@ -93,14 +93,14 @@ export default function EventsPage() {
               <div className="relative p-6 md:p-10 lg:p-12">
                 <div className="flex flex-col lg:flex-row gap-8 items-start">
                   {/* Date Block */}
-                  <div className="flex-shrink-0 bg-background/80 backdrop-blur-sm rounded-xl p-6 text-center border border-border/50 shadow-xl">
-                    <span className="text-sm font-bold text-primary tracking-widest">
+                  <div className="flex-shrink-0 bg-background/80 backdrop-blur-sm rounded-xl px-4 py-4 md:px-5 md:py-5 text-center border border-border/50 shadow-xl">
+                    <span className="text-xs font-bold text-primary tracking-widest">
                       {formatDate(nextEvent.date).month}
                     </span>
-                    <div className="text-5xl md:text-7xl font-black text-foreground my-1">
+                    <div className="text-4xl md:text-6xl font-black text-foreground my-1 leading-none">
                       {formatDate(nextEvent.date).day}
                     </div>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {formatDate(nextEvent.date).weekday}
                     </span>
                   </div>
