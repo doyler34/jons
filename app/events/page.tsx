@@ -78,6 +78,16 @@ export default function EventsPage() {
         {nextEvent && (
           <section className="mb-12 md:mb-16">
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-card to-card border border-border">
+              {nextEvent.image_url && (
+                <div className="absolute inset-0 opacity-20">
+                  <img 
+                    src={nextEvent.image_url} 
+                    alt={nextEvent.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent"></div>
+                </div>
+              )}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)]"></div>
               <div className="relative p-6 md:p-10 lg:p-12">
                 <div className="flex flex-col lg:flex-row gap-8 items-start">
@@ -165,10 +175,20 @@ export default function EventsPage() {
                 return (
                   <div
                     key={event.id}
-                    className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 md:p-6 bg-card border border-border rounded-xl hover:border-primary/50 transition-all"
+                    className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 md:p-6 bg-card border border-border rounded-xl hover:border-primary/50 transition-all overflow-hidden relative"
                   >
+                    {event.image_url && (
+                      <div className="absolute inset-0 opacity-10">
+                        <img 
+                          src={event.image_url} 
+                          alt={event.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    
                     {/* Date */}
-                    <div className="flex-shrink-0 w-16 text-center">
+                    <div className="flex-shrink-0 w-16 text-center relative z-10">
                       <span className="text-xs font-bold text-primary tracking-wider">
                         {date.month}
                       </span>
@@ -178,7 +198,7 @@ export default function EventsPage() {
                     </div>
 
                     {/* Details */}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 relative z-10">
                       <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
                         {event.title}
                       </h3>
@@ -193,21 +213,23 @@ export default function EventsPage() {
                     </div>
 
                     {/* Action */}
-                    {event.ticket_url ? (
-                      <a
-                        href={event.ticket_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-full transition-all text-sm"
-                      >
-                        <Ticket size={16} />
-                        Tickets
-                      </a>
-                    ) : (
-                      <span className="px-5 py-2.5 bg-muted text-muted-foreground font-medium rounded-full text-sm">
-                        Free Entry
-                      </span>
-                    )}
+                    <div className="relative z-10">
+                      {event.ticket_url ? (
+                        <a
+                          href={event.ticket_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-full transition-all text-sm"
+                        >
+                          <Ticket size={16} />
+                          Tickets
+                        </a>
+                      ) : (
+                        <span className="px-5 py-2.5 bg-muted text-muted-foreground font-medium rounded-full text-sm">
+                          Free Entry
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )
               })}
