@@ -42,7 +42,7 @@ export async function GET() {
   }
 }
 
-// POST - Create a new manual song
+// POST - Create a new manual song or update existing one
 export async function POST(request: NextRequest) {
   if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -50,11 +50,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { title, album_name, audio_url, cover_url } = body
-
-    if (!title || !audio_url) {
-      return NextResponse.json({ error: "Title and audio_url are required" }, { status: 400 })
-    }
+    const { id, title, album_name, audio_url, cover_url } = body
 
     // Ensure table exists
     await sql`
@@ -68,6 +64,49 @@ export async function POST(request: NextRequest) {
       )
     `
 
+    // If ID is provided, update existing song
+    if (id) {
+      const updates = []
+      const values: any[] = []
+      let paramIndex = 1
+
+      if (audio_url !== undefined) {
+        updates.push(`audio_url = $${paramIndex}`)
+        values.push(audio_url)
+        paramIndex++
+      }
+      if (cover_url !== undefined) {
+        updates.push(`cover_url = $${paramIndex}`)
+        values.push(cover_url)
+        paramIndex++
+      }
+      if (title !== undefined) {
+        updates.push(`title = $${paramIndex}`)
+        values.push(title)
+        paramIndex++
+      }
+      if (album_name !== undefined) {
+        updates.push(`album_name = $${paramIndex}`)
+        values.push(album_name)
+        paramIndex++
+      }
+
+      if (updates.length === 0) {
+        return NextResponse.json({ error: "No fields to update" }, { status: 400 })
+      }
+
+      values.push(id)
+      const query = `UPDATE manual_songs SET ${updates.join(", ")} WHERE id = $${paramIndex} RETURNING *`
+      
+      const result = await sql.query(query, values)
+      return NextResponse.json({ success: true, song: result.rows[0] })
+    }
+
+    // Otherwise, create new song
+    if (!title || !audio_url) {
+      return NextResponse.json({ error: "Title and audio_url are required" }, { status: 400 })
+    }
+
     const result = await sql`
       INSERT INTO manual_songs (title, album_name, audio_url, cover_url)
       VALUES (${title}, ${album_name || 'Singles'}, ${audio_url}, ${cover_url || null})
@@ -76,9 +115,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, song: result.rows[0] })
   } catch (error) {
-    console.error("Failed to create manual song:", error)
+    console.error("Failed to create/update manual song:", error)
     return NextResponse.json(
-      { error: "Failed to create song", details: String(error) },
+      { error: "Failed to create/update song", details: String(error) },
       { status: 500 }
     )
   }

@@ -114,6 +114,21 @@ export default function AdminDashboard() {
   const newSongAudioRef = useRef<HTMLInputElement>(null)
   const newSongCoverRef = useRef<HTMLInputElement>(null)
 
+  // Bulk upload state
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false)
+  const [bulkFiles, setBulkFiles] = useState<File[]>([])
+  const [uploadedBulkFiles, setUploadedBulkFiles] = useState<Array<{
+    originalName: string
+    blobUrl: string
+    filename: string
+    assignTo: "new" | string // "new" or manual_song id
+    newTitle: string
+    newAlbum: string
+  }>>([])
+  const [uploadingBulk, setUploadingBulk] = useState(false)
+  const [savingBulkAssignments, setSavingBulkAssignments] = useState(false)
+  const bulkFilesRef = useRef<HTMLInputElement>(null)
+
   // Subscribers state
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null)
@@ -824,6 +839,112 @@ export default function AdminDashboard() {
     }
   }
 
+  // Handle bulk file upload to Vercel Blob
+  const handleBulkFileUpload = async () => {
+    if (bulkFiles.length === 0) {
+      setMusicStatus({ type: "error", message: "Please select files to upload" })
+      return
+    }
+
+    setUploadingBulk(true)
+    setMusicStatus(null)
+
+    try {
+      const formData = new FormData()
+      bulkFiles.forEach(file => formData.append("files", file))
+
+      const res = await fetch("/api/admin/bulk-upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || "Upload failed")
+      }
+
+      const data = await res.json()
+      
+      // Initialize uploaded files with default assignment to "new"
+      const initializedFiles = data.files.map((file: any) => ({
+        ...file,
+        assignTo: "new",
+        newTitle: file.originalName.replace(/\.(mp3|wav|m4a|ogg)$/i, ""),
+        newAlbum: "Singles",
+      }))
+
+      setUploadedBulkFiles(initializedFiles)
+      setBulkFiles([])
+      if (bulkFilesRef.current) bulkFilesRef.current.value = ""
+      setMusicStatus({ type: "success", message: `Successfully uploaded ${data.count} files` })
+    } catch (error) {
+      console.error("Bulk upload error:", error)
+      setMusicStatus({ type: "error", message: error instanceof Error ? error.message : "Upload failed" })
+    } finally {
+      setUploadingBulk(false)
+    }
+  }
+
+  // Save all bulk assignments
+  const handleSaveBulkAssignments = async () => {
+    if (uploadedBulkFiles.length === 0) return
+
+    setSavingBulkAssignments(true)
+    setMusicStatus(null)
+
+    try {
+      const results = []
+
+      for (const file of uploadedBulkFiles) {
+        if (file.assignTo === "new") {
+          // Create new manual song
+          const res = await fetch("/api/songs/manual", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: file.newTitle,
+              album_name: file.newAlbum || "Singles",
+              audio_url: file.blobUrl,
+              cover_url: null,
+            }),
+          })
+
+          if (res.ok) {
+            const data = await res.json()
+            results.push(data.song)
+          }
+        } else {
+          // Assign to existing manual song - update its audio_url
+          const res = await fetch(`/api/songs/manual`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: file.assignTo,
+              audio_url: file.blobUrl,
+            }),
+          })
+
+          if (res.ok) {
+            results.push({ id: file.assignTo })
+          }
+        }
+      }
+
+      // Refresh manual songs list
+      await fetchManualSongs()
+      
+      setMusicStatus({ type: "success", message: `Successfully saved ${results.length} songs` })
+      setShowBulkUploadModal(false)
+      setUploadedBulkFiles([])
+      setBulkFiles([])
+    } catch (error) {
+      console.error("Save assignments error:", error)
+      setMusicStatus({ type: "error", message: "Failed to save some assignments" })
+    } finally {
+      setSavingBulkAssignments(false)
+    }
+  }
+
   // Fetch manual songs
   const fetchManualSongs = async () => {
     try {
@@ -1186,6 +1307,13 @@ export default function AdminDashboard() {
                 >
                   <Plus size={16} />
                   Upload New Song
+                </Button>
+                <Button 
+                  onClick={() => setShowBulkUploadModal(true)} 
+                  className="gap-2 bg-purple-600 hover:bg-purple-700"
+                >
+                  <Upload size={16} />
+                  Bulk Upload
                 </Button>
                 <Button 
                   onClick={() => fetchMusic(true)} 
@@ -1555,6 +1683,197 @@ export default function AdminDashboard() {
                       {uploadingNewSong ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                       {uploadingNewSong ? "Uploading..." : "Upload Song"}
                     </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Bulk Upload Modal */}
+            {showBulkUploadModal && (
+              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                <div className="bg-card border border-border rounded-lg w-full max-w-4xl my-8">
+                  <div className="p-6 border-b border-border flex items-center justify-between">
+                    <h3 className="text-lg font-bold">Bulk Upload Songs</h3>
+                    <button onClick={() => setShowBulkUploadModal(false)} className="text-muted-foreground hover:text-foreground">
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="p-6 space-y-6">
+                    {/* File Upload Section */}
+                    {uploadedBulkFiles.length === 0 && (
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Select MP3 Files (Max 10 files, 50MB each)
+                        </label>
+                        <input
+                          ref={bulkFilesRef}
+                          type="file"
+                          accept="audio/*"
+                          multiple
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || [])
+                            if (files.length > 10) {
+                              setMusicStatus({ type: "error", message: "Maximum 10 files allowed" })
+                              return
+                            }
+                            setBulkFiles(files)
+                          }}
+                          className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-purple-600 file:text-white hover:file:bg-purple-700 file:cursor-pointer cursor-pointer"
+                        />
+                        {bulkFiles.length > 0 && (
+                          <div className="mt-4 space-y-2">
+                            <p className="text-sm font-medium">Selected files ({bulkFiles.length}):</p>
+                            <div className="bg-muted/20 rounded-lg p-3 space-y-1 max-h-48 overflow-y-auto">
+                              {bulkFiles.map((file, idx) => (
+                                <div key={idx} className="text-xs text-green-400 flex items-center gap-2">
+                                  <Check size={12} />
+                                  {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                                </div>
+                              ))}
+                            </div>
+                            <Button
+                              onClick={handleBulkFileUpload}
+                              disabled={uploadingBulk}
+                              className="gap-2 bg-purple-600 hover:bg-purple-700"
+                            >
+                              {uploadingBulk ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                              {uploadingBulk ? "Uploading..." : `Upload ${bulkFiles.length} Files`}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Assignment Section */}
+                    {uploadedBulkFiles.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium">
+                            Assign audio files to songs ({uploadedBulkFiles.length} files uploaded)
+                          </p>
+                          <Button
+                            onClick={() => {
+                              setUploadedBulkFiles([])
+                              setBulkFiles([])
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="gap-1"
+                          >
+                            <X size={14} />
+                            Clear All
+                          </Button>
+                        </div>
+
+                        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                          {uploadedBulkFiles.map((file, idx) => (
+                            <div key={idx} className="bg-muted/20 rounded-lg p-4 space-y-3">
+                              <div className="flex items-center gap-2">
+                                <Music size={16} className="text-purple-400" />
+                                <p className="font-medium text-sm">{file.originalName}</p>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`assign-${idx}`}
+                                    checked={file.assignTo === "new"}
+                                    onChange={() => {
+                                      const updated = [...uploadedBulkFiles]
+                                      updated[idx].assignTo = "new"
+                                      setUploadedBulkFiles(updated)
+                                    }}
+                                    className="text-purple-600"
+                                  />
+                                  <span className="text-sm font-medium">Create New Song</span>
+                                </label>
+
+                                {file.assignTo === "new" && (
+                                  <div className="ml-6 space-y-2">
+                                    <Input
+                                      type="text"
+                                      placeholder="Song Title"
+                                      value={file.newTitle}
+                                      onChange={(e) => {
+                                        const updated = [...uploadedBulkFiles]
+                                        updated[idx].newTitle = e.target.value
+                                        setUploadedBulkFiles(updated)
+                                      }}
+                                      className="bg-input border-border text-sm"
+                                    />
+                                    <Input
+                                      type="text"
+                                      placeholder="Album Name (optional)"
+                                      value={file.newAlbum}
+                                      onChange={(e) => {
+                                        const updated = [...uploadedBulkFiles]
+                                        updated[idx].newAlbum = e.target.value
+                                        setUploadedBulkFiles(updated)
+                                      }}
+                                      className="bg-input border-border text-sm"
+                                    />
+                                  </div>
+                                )}
+
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`assign-${idx}`}
+                                    checked={file.assignTo !== "new"}
+                                    onChange={() => {
+                                      const updated = [...uploadedBulkFiles]
+                                      updated[idx].assignTo = manualSongs[0]?.id || "new"
+                                      setUploadedBulkFiles(updated)
+                                    }}
+                                    className="text-purple-600"
+                                  />
+                                  <span className="text-sm font-medium">Assign to Existing Song</span>
+                                </label>
+
+                                {file.assignTo !== "new" && (
+                                  <div className="ml-6">
+                                    <select
+                                      value={file.assignTo}
+                                      onChange={(e) => {
+                                        const updated = [...uploadedBulkFiles]
+                                        updated[idx].assignTo = e.target.value
+                                        setUploadedBulkFiles(updated)
+                                      }}
+                                      className="w-full px-3 py-2 bg-input border border-border rounded-md text-sm"
+                                    >
+                                      {manualSongs.map((song) => (
+                                        <option key={song.id} value={song.id}>
+                                          {song.title} - {song.album_name}
+                                          {!song.audio_url && " (No Audio)"}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-6 border-t border-border flex gap-3 justify-end">
+                    <Button variant="outline" onClick={() => setShowBulkUploadModal(false)}>
+                      Cancel
+                    </Button>
+                    {uploadedBulkFiles.length > 0 && (
+                      <Button
+                        onClick={handleSaveBulkAssignments}
+                        disabled={savingBulkAssignments}
+                        className="gap-2 bg-purple-600 hover:bg-purple-700"
+                      >
+                        {savingBulkAssignments ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        {savingBulkAssignments ? "Saving..." : `Save All (${uploadedBulkFiles.length})`}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
