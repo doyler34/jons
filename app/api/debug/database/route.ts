@@ -1,7 +1,19 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
+import { cookies } from "next/headers"
+import { verifyAdminSessionToken } from "@/lib/admin-session"
 
 export async function GET() {
+  // Check authentication - admin only
+  const cookieStore = await cookies()
+  const session = cookieStore.get("admin_session")
+  const secret = process.env.ADMIN_PASSWORD
+  const ok = !!secret && verifyAdminSessionToken(session?.value, secret)
+
+  if (!ok) {
+    return NextResponse.json({ error: "Unauthorized - Admin access only" }, { status: 401 })
+  }
+
   try {
     // Check if manual_songs table exists
     const tableCheck = await sql`

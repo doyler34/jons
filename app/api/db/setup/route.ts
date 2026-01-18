@@ -1,9 +1,21 @@
 import { sql } from "@vercel/postgres"
 import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
+import { verifyAdminSessionToken } from "@/lib/admin-session"
 
 // This endpoint creates the song_overrides table
-// Run once: GET /api/db/setup
+// Run once: GET /api/db/setup (ADMIN ONLY)
 export async function GET() {
+  // Check authentication - admin only
+  const cookieStore = await cookies()
+  const session = cookieStore.get("admin_session")
+  const secret = process.env.ADMIN_PASSWORD
+  const ok = !!secret && verifyAdminSessionToken(session?.value, secret)
+
+  if (!ok) {
+    return NextResponse.json({ error: "Unauthorized - Admin access only" }, { status: 401 })
+  }
+
   try {
     await sql`
       CREATE TABLE IF NOT EXISTS song_overrides (
