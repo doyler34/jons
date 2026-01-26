@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { sql } from "@vercel/postgres"
-import { verifyAdminSessionToken } from "@/lib/admin-session"
 
 const ensureTables = async () => {
   await sql`
@@ -40,10 +39,7 @@ export async function GET(request: NextRequest) {
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
 
-  const secret = process.env.ADMIN_PASSWORD
-  const ok = !!secret && verifyAdminSessionToken(session?.value, secret)
-
-  if (!ok) {
+  if (!session?.value) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

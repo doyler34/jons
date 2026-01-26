@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import { verifyAdminSessionToken } from "@/lib/admin-session"
 
 export async function GET() {
   // Check authentication
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
 
-  const secret = process.env.ADMIN_PASSWORD
-  const ok = !!secret && verifyAdminSessionToken(session?.value, secret)
-
-  if (!ok) {
+  if (!session?.value) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

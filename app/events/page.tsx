@@ -46,7 +46,9 @@ export default function EventsPage() {
   const nextEvent = upcomingEvents[0]
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+    // Treat YYYY-MM-DD as a local date (avoid timezone shift)
+    const [y, m, d] = dateString.split("-").map((v) => Number(v))
+    const date = new Date(y, (m || 1) - 1, d || 1)
     return {
       day: date.getDate(),
       month: date.toLocaleDateString("en-US", { month: "short" }).toUpperCase(),

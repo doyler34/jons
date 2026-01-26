@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import { createAdminSessionToken, getAdminSessionMaxAgeSeconds, verifyAdminSessionToken } from "@/lib/admin-session"
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,16 +20,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create a signed session token (stateless) with expiry
-    const sessionToken = createAdminSessionToken(ADMIN_PASSWORD)
+    // Create a simple session token
+    const sessionToken = Buffer.from(
+      `${Date.now()}-${ADMIN_PASSWORD}-${Math.random().toString(36)}`
+    ).toString("base64")
 
-    // Set session cookie (8 hours)
+    // Set session cookie (24 hours)
     const cookieStore = await cookies()
     cookieStore.set("admin_session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: getAdminSessionMaxAgeSeconds(),
+      maxAge: 60 * 60 * 24, // 24 hours
       path: "/",
     })
 
@@ -56,10 +57,7 @@ export async function GET() {
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
   
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
-  const ok = ADMIN_PASSWORD ? verifyAdminSessionToken(session?.value, ADMIN_PASSWORD) : false
-
-  if (!ok) {
+  if (!session?.value) {
     return NextResponse.json({ authenticated: false }, { status: 401 })
   }
 

@@ -1,7 +1,6 @@
 import { sql } from "@vercel/postgres"
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import { verifyAdminSessionToken } from "@/lib/admin-session"
 
 // Disable caching
 export const dynamic = "force-dynamic"
@@ -11,8 +10,7 @@ export const revalidate = 0
 async function isAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")
-  const secret = process.env.ADMIN_PASSWORD
-  return !!secret && verifyAdminSessionToken(session?.value, secret)
+  return !!session?.value
 }
 
 // Ensure table exists
