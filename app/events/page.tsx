@@ -41,8 +41,22 @@ export default function EventsPage() {
     fetchEvents()
   }, [])
 
-  const upcomingEvents = events.filter(e => !e.is_past)
-  const pastEvents = events.filter(e => e.is_past)
+  // Filter events based on date comparison (not the static is_past field)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset to start of day for fair comparison
+  
+  const upcomingEvents = events.filter(e => {
+    const eventDate = new Date(e.date)
+    eventDate.setHours(0, 0, 0, 0)
+    return eventDate >= today
+  })
+  
+  const pastEvents = events.filter(e => {
+    const eventDate = new Date(e.date)
+    eventDate.setHours(0, 0, 0, 0)
+    return eventDate < today
+  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // Most recent first
+  
   const nextEvent = upcomingEvents[0]
 
   const formatDate = (dateString: string) => {

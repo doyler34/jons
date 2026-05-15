@@ -62,11 +62,10 @@ export async function GET() {
   try {
     await ensureTable()
     
+    // Get all events sorted by date ascending
     const result = await sql`
       SELECT * FROM events 
-      ORDER BY 
-        CASE WHEN is_past = false THEN 0 ELSE 1 END,
-        date ASC
+      ORDER BY date ASC
     `
 
     const response = NextResponse.json({ events: result.rows })
