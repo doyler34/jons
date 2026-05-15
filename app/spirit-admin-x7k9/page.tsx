@@ -140,6 +140,20 @@ export default function AdminDashboard() {
   const editAudioRef = useRef<HTMLInputElement>(null)
   const editCoverRef = useRef<HTMLInputElement>(null)
 
+  // Manual albums state
+  interface ManualAlbum {
+    id: string
+    name: string
+    cover_url: string | null
+    release_date: string | null
+    created_at: string
+  }
+  const [manualAlbums, setManualAlbums] = useState<ManualAlbum[]>([])
+  const [showCreateAlbumModal, setShowCreateAlbumModal] = useState(false)
+  const [newAlbum, setNewAlbum] = useState({ name: "", coverFile: null as File | null, releaseDate: "" })
+  const [creatingAlbum, setCreatingAlbum] = useState(false)
+  const albumCoverRef = useRef<HTMLInputElement>(null)
+
   // Subscribers state
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null)
@@ -224,6 +238,7 @@ export default function AdminDashboard() {
         fetchSubscribers()
         fetchNewsletterStats()
         fetchManualSongs()
+        fetchManualAlbums()
         fetchEvents()
         fetchSettings()
       } else {
@@ -963,6 +978,74 @@ export default function AdminDashboard() {
     }
   }
 
+  // Fetch manual albums
+  const fetchManualAlbums = async () => {
+    try {
+      const res = await fetch("/api/albums/manual")
+      if (res.ok) {
+        const data = await res.json()
+        setManualAlbums(data.albums || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch manual albums:", error)
+    }
+  }
+
+  // Create a new album
+  const handleCreateAlbum = async () => {
+    if (!newAlbum.name.trim()) {
+      setMusicStatus({ type: "error", message: "Album name is required" })
+      return
+    }
+
+    setCreatingAlbum(true)
+    setMusicStatus(null)
+
+    try {
+      let coverUrl = null
+
+      // Upload cover if provided
+      if (newAlbum.coverFile) {
+        const timestamp = Date.now()
+        const random = Math.random().toString(36).substring(7)
+        const extension = newAlbum.coverFile.name.split(".").pop() || "jpg"
+        const filename = `album-cover-${timestamp}-${random}.${extension}`
+
+        const coverBlob = await upload(filename, newAlbum.coverFile, {
+          access: "public",
+          handleUploadUrl: "/api/admin/upload-token",
+        })
+        coverUrl = coverBlob.url
+      }
+
+      const res = await fetch("/api/albums/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newAlbum.name,
+          cover_url: coverUrl,
+          release_date: newAlbum.releaseDate || null,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to create album")
+      }
+
+      setMusicStatus({ type: "success", message: `Album "${newAlbum.name}" created!` })
+      setShowCreateAlbumModal(false)
+      setNewAlbum({ name: "", coverFile: null, releaseDate: "" })
+      if (albumCoverRef.current) albumCoverRef.current.value = ""
+      fetchManualAlbums()
+    } catch (error) {
+      console.error("Create album error:", error)
+      setMusicStatus({ type: "error", message: error instanceof Error ? error.message : "Failed to create album" })
+    } finally {
+      setCreatingAlbum(false)
+    }
+  }
+
   // Open edit modal for a manual song
   const openEditSong = (song: ManualSong) => {
     setEditingSong(song)
@@ -1445,13 +1528,21 @@ export default function AdminDashboard() {
                   )}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button 
                   onClick={() => setShowUploadModal(true)} 
                   className="gap-2 bg-primary"
                 >
                   <Plus size={16} />
                   Upload Song(s)
+                </Button>
+                <Button 
+                  onClick={() => setShowCreateAlbumModal(true)} 
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <Plus size={16} />
+                  Create Album
                 </Button>
                 <Button 
                   onClick={() => fetchMusic(true)} 
@@ -1859,21 +1950,11 @@ export default function AdminDashboard() {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium mb-2">Album Name <span className="text-muted-foreground font-normal">(optional, defaults to "Singles")</span></label>
-                          <Input
-                            type="text"
-                            placeholder="Singles"
-                            value={newSong.albumName}
-                            onChange={(e) => setNewSong(prev => ({ ...prev, albumName: e.target.value }))}
-                            className="bg-input border-border"
-                          />
-                        </div>
-                        <div>
                           <label className="block text-sm font-medium mb-2">Release Type</label>
                           <div className="flex gap-2">
                             <button
                               type="button"
-                              onClick={() => setNewSong(prev => ({ ...prev, releaseType: "single" }))}
+                              onClick={() => setNewSong(prev => ({ ...prev, releaseType: "single", albumName: "Singles" }))}
                               className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                                 newSong.releaseType === "single"
                                   ? "bg-purple-500 text-white"
@@ -1894,7 +1975,33 @@ export default function AdminDashboard() {
                               Album Track
                             </button>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">
+                          
+                          {/* Album Selection - shown when Album Track is selected */}
+                          {newSong.releaseType === "album" && (
+                            <div className="mt-3">
+                              <label className="block text-sm font-medium mb-2">Select Album</label>
+                              {manualAlbums.length > 0 ? (
+                                <select
+                                  value={newSong.albumName}
+                                  onChange={(e) => setNewSong(prev => ({ ...prev, albumName: e.target.value }))}
+                                  className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground text-sm"
+                                >
+                                  <option value="">-- Select an album --</option>
+                                  {manualAlbums.map((album) => (
+                                    <option key={album.id} value={album.name}>
+                                      {album.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-md">
+                                  No albums created yet. Create an album first using the &quot;Create Album&quot; button.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          <p className="text-xs text-muted-foreground mt-2">
                             Singles appear individually. Album tracks are grouped by album name.
                           </p>
                         </div>
@@ -1995,25 +2102,13 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    {/* Album Name */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Album Name</label>
-                      <Input
-                        type="text"
-                        placeholder="Singles"
-                        value={editForm.albumName}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, albumName: e.target.value }))}
-                        className="bg-input border-border"
-                      />
-                    </div>
-
                     {/* Release Type */}
                     <div>
                       <label className="block text-sm font-medium mb-2">Release Type</label>
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          onClick={() => setEditForm(prev => ({ ...prev, releaseType: "single" }))}
+                          onClick={() => setEditForm(prev => ({ ...prev, releaseType: "single", albumName: "Singles" }))}
                           className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                             editForm.releaseType === "single"
                               ? "bg-purple-500 text-white"
@@ -2034,6 +2129,31 @@ export default function AdminDashboard() {
                           Album Track
                         </button>
                       </div>
+                      
+                      {/* Album Selection - shown when Album Track is selected */}
+                      {editForm.releaseType === "album" && (
+                        <div className="mt-3">
+                          <label className="block text-sm font-medium mb-2">Select Album</label>
+                          {manualAlbums.length > 0 ? (
+                            <select
+                              value={editForm.albumName}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, albumName: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground text-sm"
+                            >
+                              <option value="">-- Select an album --</option>
+                              {manualAlbums.map((album) => (
+                                <option key={album.id} value={album.name}>
+                                  {album.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-md">
+                              No albums created yet. Create an album first using the &quot;Create Album&quot; button.
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Replace Audio */}
@@ -2085,6 +2205,74 @@ export default function AdminDashboard() {
                     >
                       {savingEdit ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                       {savingEdit ? "Saving..." : "Save Changes"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Create Album Modal */}
+            {showCreateAlbumModal && (
+              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="bg-card border border-border rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+                  <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card">
+                    <h3 className="text-lg font-bold">Create Album</h3>
+                    <button onClick={() => setShowCreateAlbumModal(false)} className="text-muted-foreground hover:text-foreground">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    {/* Album Name */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Album Name *</label>
+                      <Input
+                        type="text"
+                        placeholder="Enter album name"
+                        value={newAlbum.name}
+                        onChange={(e) => setNewAlbum(prev => ({ ...prev, name: e.target.value }))}
+                        className="bg-input border-border"
+                      />
+                    </div>
+
+                    {/* Release Date */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Release Date <span className="text-muted-foreground font-normal">(optional)</span></label>
+                      <Input
+                        type="date"
+                        value={newAlbum.releaseDate}
+                        onChange={(e) => setNewAlbum(prev => ({ ...prev, releaseDate: e.target.value }))}
+                        className="bg-input border-border"
+                      />
+                    </div>
+
+                    {/* Album Cover */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Album Cover <span className="text-muted-foreground font-normal">(optional)</span></label>
+                      <input
+                        ref={albumCoverRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setNewAlbum(prev => ({ ...prev, coverFile: e.target.files?.[0] || null }))}
+                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-muted file:text-muted-foreground hover:file:bg-muted/80 file:cursor-pointer cursor-pointer"
+                      />
+                      {newAlbum.coverFile && (
+                        <p className="text-xs text-green-400 mt-1">Selected: {newAlbum.coverFile.name}</p>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                      After creating an album, you can add tracks to it using the &quot;Upload Song(s)&quot; button and selecting &quot;Album Track&quot; as the release type.
+                    </p>
+                  </div>
+                  <div className="p-6 border-t border-border flex gap-3 justify-end sticky bottom-0 bg-card">
+                    <Button variant="outline" onClick={() => setShowCreateAlbumModal(false)}>Cancel</Button>
+                    <Button 
+                      onClick={handleCreateAlbum} 
+                      disabled={creatingAlbum || !newAlbum.name.trim()}
+                      className="gap-2"
+                    >
+                      {creatingAlbum ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                      {creatingAlbum ? "Creating..." : "Create Album"}
                     </Button>
                   </div>
                 </div>
