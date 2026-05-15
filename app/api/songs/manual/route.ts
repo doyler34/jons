@@ -23,15 +23,27 @@ export async function GET() {
         album_name VARCHAR(255) DEFAULT 'Singles',
         audio_url TEXT,
         cover_url TEXT,
+        release_type VARCHAR(50) DEFAULT 'single',
+        duration_ms INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `
 
-    // Alter existing table to make audio_url nullable if it exists
+    // Alter existing table to add new columns if they don't exist
     await sql`
       DO $$ 
       BEGIN 
         ALTER TABLE manual_songs ALTER COLUMN audio_url DROP NOT NULL;
+      EXCEPTION
+        WHEN others THEN NULL;
+      END $$;
+    `
+    
+    await sql`
+      DO $$ 
+      BEGIN 
+        ALTER TABLE manual_songs ADD COLUMN IF NOT EXISTS release_type VARCHAR(50) DEFAULT 'single';
+        ALTER TABLE manual_songs ADD COLUMN IF NOT EXISTS duration_ms INTEGER DEFAULT 0;
       EXCEPTION
         WHEN others THEN NULL;
       END $$;
@@ -68,6 +80,8 @@ export async function POST(request: NextRequest) {
         album_name VARCHAR(255) DEFAULT 'Singles',
         audio_url TEXT,
         cover_url TEXT,
+        release_type VARCHAR(50) DEFAULT 'single',
+        duration_ms INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `
@@ -98,6 +112,16 @@ export async function POST(request: NextRequest) {
         values.push(album_name)
         paramIndex++
       }
+      if (body.release_type !== undefined) {
+        updates.push(`release_type = $${paramIndex}`)
+        values.push(body.release_type)
+        paramIndex++
+      }
+      if (body.duration_ms !== undefined) {
+        updates.push(`duration_ms = $${paramIndex}`)
+        values.push(body.duration_ms)
+        paramIndex++
+      }
 
       if (updates.length === 0) {
         return NextResponse.json({ error: "No fields to update" }, { status: 400 })
@@ -116,8 +140,8 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await sql`
-      INSERT INTO manual_songs (title, album_name, audio_url, cover_url)
-      VALUES (${title}, ${album_name || 'Singles'}, ${audio_url}, ${cover_url || null})
+      INSERT INTO manual_songs (title, album_name, audio_url, cover_url, release_type, duration_ms)
+      VALUES (${title}, ${album_name || 'Singles'}, ${audio_url}, ${cover_url || null}, ${body.release_type || 'single'}, ${body.duration_ms || 0})
       RETURNING *
     `
 

@@ -52,6 +52,8 @@ type ManualSong = {
   album_name: string
   audio_url: string
   cover_url: string | null
+  release_type: string
+  duration_ms: number
   created_at: string
 }
 
@@ -88,34 +90,35 @@ export default function MusicPage() {
 
         const spotifyData = await spotifyRes.json()
         const manualData = await manualRes.json()
-        setManualSongs(manualData.songs || [])
+        const manualSongsWithAudio = (manualData.songs || []).filter((song: ManualSong) => song.audio_url)
+        setManualSongs(manualSongsWithAudio)
 
         // Set albums with tracks
         let albumsList: SpotifyAlbum[] = spotifyData.albumsWithTracks || []
 
-        // Group manual songs by album_name and create virtual albums (primary audio)
-        const songsWithAudio = manualData.songs?.filter((song: ManualSong) => song.audio_url) || []
-        if (songsWithAudio.length > 0) {
+        // Group manual songs by album_name and integrate into normal sections
+        if (manualSongsWithAudio.length > 0) {
           const manualSongsByAlbum: Record<string, ManualSong[]> = {}
-          songsWithAudio.forEach((song: ManualSong) => {
-            const albumName = song.album_name || "Singles"
+          manualSongsWithAudio.forEach((song: ManualSong) => {
+            // Use release_type to determine grouping - if album, use album_name; if single, group as "Singles"
+            const albumName = song.release_type === 'album' ? (song.album_name || 'Singles') : 'Singles'
             if (!manualSongsByAlbum[albumName]) {
               manualSongsByAlbum[albumName] = []
             }
             manualSongsByAlbum[albumName].push(song)
           })
           
-          // Convert manual songs to virtual albums
+          // Convert manual songs to virtual albums that blend with Spotify albums
           Object.entries(manualSongsByAlbum).forEach(([albumName, songs]) => {
-            const tracks: SpotifyTrack[] = songs.map((song: ManualSong) => ({
+            const tracks: SpotifyTrack[] = songs.map((song: ManualSong, index: number) => ({
               id: `manual-${song.id}`,
               name: song.title,
-              duration_ms: 0, // Duration not stored for manual songs
-              preview_url: song.audio_url, // primary audio
-              track_number: undefined,
+              duration_ms: song.duration_ms || 0,
+              preview_url: song.audio_url,
+              track_number: index + 1,
               album: {
                 id: `manual-album-${albumName}`,
-                name: albumName,
+                name: song.release_type === 'album' ? albumName : song.title, // Singles show song title as album name
                 images: song.cover_url ? [{ url: song.cover_url, height: 300, width: 300 }] : [],
               },
               external_urls: {
@@ -123,17 +126,49 @@ export default function MusicPage() {
               },
             }))
             
-            albumsList.push({
-              id: `manual-album-${albumName}`,
-              name: albumName,
-              images: songs[0]?.cover_url ? [{ url: songs[0].cover_url, height: 300, width: 300 }] : [],
-              release_date: songs[0]?.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
-              total_tracks: songs.length,
-              external_urls: {
-                spotify: "#",
-              },
-              tracks,
-            })
+            // For singles, create individual album entries for each song
+            if (albumName === 'Singles') {
+              songs.forEach((song: ManualSong) => {
+                albumsList.push({
+                  id: `manual-single-${song.id}`,
+                  name: song.title,
+                  images: song.cover_url ? [{ url: song.cover_url, height: 300, width: 300 }] : [],
+                  release_date: song.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+                  total_tracks: 1,
+                  external_urls: {
+                    spotify: "#",
+                  },
+                  tracks: [{
+                    id: `manual-${song.id}`,
+                    name: song.title,
+                    duration_ms: song.duration_ms || 0,
+                    preview_url: song.audio_url,
+                    track_number: 1,
+                    album: {
+                      id: `manual-single-${song.id}`,
+                      name: song.title,
+                      images: song.cover_url ? [{ url: song.cover_url, height: 300, width: 300 }] : [],
+                    },
+                    external_urls: {
+                      spotify: "#",
+                    },
+                  }],
+                })
+              })
+            } else {
+              // For albums, create one album with all songs
+              albumsList.push({
+                id: `manual-album-${albumName}`,
+                name: albumName,
+                images: songs[0]?.cover_url ? [{ url: songs[0].cover_url, height: 300, width: 300 }] : [],
+                release_date: songs[0]?.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+                total_tracks: songs.length,
+                external_urls: {
+                  spotify: "#",
+                },
+                tracks,
+              })
+            }
           })
         }
         
@@ -261,8 +296,8 @@ export default function MusicPage() {
     setCurrentTrack({
       id: String(song.id),
       title: song.title,
-      duration: "—",
-      durationMs: 0,
+      duration: song.duration_ms > 0 ? formatDuration(song.duration_ms) : "—",
+      durationMs: song.duration_ms || 0,
       image: song.cover_url || "/placeholder.svg",
       previewUrl: song.audio_url,
       spotifyUrl: "",
@@ -401,32 +436,6 @@ export default function MusicPage() {
       <Navigation />
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-16 py-6 md:py-12">
-        {/* Manual Uploads (primary audio) */}
-        {manualSongs.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-xl md:text-2xl font-bold mb-4 text-foreground">Manual Uploads</h2>
-            <div className="divide-y divide-border bg-card border border-border rounded-lg">
-              {manualSongs.map((song) => (
-                <div
-                  key={song.id}
-                  onClick={() => playManual(song)}
-                  className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-colors"
-                >
-                  <img
-                    src={song.cover_url || "/placeholder.svg"}
-                    alt={song.title}
-                    className="w-12 h-12 rounded object-cover"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{song.title}</p>
-                    <p className="text-sm text-muted-foreground truncate">{song.album_name}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Header */}
         <h1 className="text-3xl sm:text-4xl md:text-6xl font-black mb-8 md:mb-12 text-foreground tracking-tighter">
           MUSIC

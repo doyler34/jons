@@ -48,6 +48,8 @@ interface ManualSong {
   album_name: string
   audio_url: string
   cover_url: string | null
+  release_type: string
+  duration_ms: number
   created_at: string
 }
 
@@ -116,12 +118,27 @@ export default function AdminDashboard() {
     audioFile: null as File | null, 
     coverFile: null as File | null,
     isOverride: false,
-    overrideTarget: null as string | null
+    overrideTarget: null as string | null,
+    releaseType: "single" as "single" | "album"
   })
   const [uploadingNewSong, setUploadingNewSong] = useState(false)
   const [manualSongs, setManualSongs] = useState<ManualSong[]>([])
   const newSongAudioRef = useRef<HTMLInputElement>(null)
   const newSongCoverRef = useRef<HTMLInputElement>(null)
+  
+  // Edit manual song state
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingSong, setEditingSong] = useState<ManualSong | null>(null)
+  const [editForm, setEditForm] = useState({
+    title: "",
+    albumName: "",
+    releaseType: "single" as "single" | "album",
+    audioFile: null as File | null,
+    coverFile: null as File | null,
+  })
+  const [savingEdit, setSavingEdit] = useState(false)
+  const editAudioRef = useRef<HTMLInputElement>(null)
+  const editCoverRef = useRef<HTMLInputElement>(null)
 
   // Subscribers state
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
@@ -900,6 +917,7 @@ export default function AdminDashboard() {
               album_name: newSong.albumName || "Singles",
               audio_url: audioBlob.url,
               cover_url: coverUrl,
+              release_type: newSong.releaseType || "single",
             }),
           })
 
@@ -919,7 +937,7 @@ export default function AdminDashboard() {
             : "Song uploaded successfully!" 
       })
       setShowUploadModal(false)
-      setNewSong({ title: "", albumName: "", audioFile: null, coverFile: null, isOverride: false, overrideTarget: null })
+      setNewSong({ title: "", albumName: "", audioFile: null, coverFile: null, isOverride: false, overrideTarget: null, releaseType: "single" })
       if (newSongAudioRef.current) newSongAudioRef.current.value = ""
       if (newSongCoverRef.current) newSongCoverRef.current.value = ""
       fetchManualSongs()
@@ -942,6 +960,112 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error("Failed to fetch manual songs:", error)
+    }
+  }
+
+  // Open edit modal for a manual song
+  const openEditSong = (song: ManualSong) => {
+    setEditingSong(song)
+    setEditForm({
+      title: song.title,
+      albumName: song.album_name || "Singles",
+      releaseType: (song.release_type as "single" | "album") || "single",
+      audioFile: null,
+      coverFile: null,
+    })
+    setShowEditModal(true)
+  }
+
+  // Save edited manual song
+  const saveEditedSong = async () => {
+    if (!editingSong) return
+    if (!editForm.title.trim()) {
+      setMusicStatus({ type: "error", message: "Title is required" })
+      return
+    }
+
+    setSavingEdit(true)
+    setMusicStatus(null)
+
+    try {
+      let audioUrl = editingSong.audio_url
+      let coverUrl = editingSong.cover_url
+
+      // Upload new audio if provided
+      if (editForm.audioFile) {
+        const timestamp = Date.now()
+        const random = Math.random().toString(36).substring(7)
+        const extension = editForm.audioFile.name.split(".").pop() || "mp3"
+        const filename = `song-${timestamp}-${random}.${extension}`
+
+        const audioBlob = await upload(filename, editForm.audioFile, {
+          access: "public",
+          handleUploadUrl: "/api/admin/upload-token",
+        })
+        audioUrl = audioBlob.url
+      }
+
+      // Upload new cover if provided
+      if (editForm.coverFile) {
+        const timestamp = Date.now()
+        const random = Math.random().toString(36).substring(7)
+        const extension = editForm.coverFile.name.split(".").pop() || "jpg"
+        const filename = `cover-${timestamp}-${random}.${extension}`
+
+        const coverBlob = await upload(filename, editForm.coverFile, {
+          access: "public",
+          handleUploadUrl: "/api/admin/upload-token",
+        })
+        coverUrl = coverBlob.url
+      }
+
+      // Update the song
+      const saveRes = await fetch("/api/songs/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingSong.id,
+          title: editForm.title,
+          album_name: editForm.albumName || "Singles",
+          release_type: editForm.releaseType,
+          audio_url: audioUrl,
+          cover_url: coverUrl,
+        }),
+      })
+
+      if (!saveRes.ok) throw new Error("Failed to update song")
+
+      const { song } = await saveRes.json()
+      setManualSongs(prev => prev.map(s => s.id === editingSong.id ? song : s))
+      setMusicStatus({ type: "success", message: "Song updated successfully!" })
+      setShowEditModal(false)
+      setEditingSong(null)
+      setEditForm({ title: "", albumName: "", releaseType: "single", audioFile: null, coverFile: null })
+      if (editAudioRef.current) editAudioRef.current.value = ""
+      if (editCoverRef.current) editCoverRef.current.value = ""
+    } catch (error) {
+      console.error("Edit error:", error)
+      setMusicStatus({ type: "error", message: error instanceof Error ? error.message : "Failed to update song" })
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  // Delete a manual song
+  const deleteManualSong = async (id: string, title: string) => {
+    if (!confirm(`Delete "${title}"? This action cannot be undone.`)) return
+
+    try {
+      const res = await fetch(`/api/songs/manual?id=${id}`, { method: "DELETE" })
+      if (res.ok) {
+        setManualSongs(prev => prev.filter(s => s.id !== id))
+        setMusicStatus({ type: "success", message: "Song deleted" })
+      } else {
+        setMusicStatus({ type: "error", message: "Failed to delete song" })
+      }
+    } catch (error) {
+      console.error("Delete song error:", error)
+      setMusicStatus({ type: "error", message: "Failed to delete song" })
     }
   }
 
@@ -1448,12 +1572,37 @@ export default function AdminDashboard() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground truncate">{song.title}</p>
                         <p className="text-sm text-muted-foreground truncate">{song.album_name}</p>
-                        <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded mt-1 inline-block">
-                          Manual Upload
-                        </span>
+                        <div className="flex gap-2 mt-1 flex-wrap">
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            song.release_type === "album" 
+                              ? "bg-blue-500/20 text-blue-400" 
+                              : "bg-purple-500/20 text-purple-400"
+                          }`}>
+                            {song.release_type === "album" ? "Album Track" : "Single"}
+                          </span>
+                          {song.audio_url && (
+                            <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">
+                              ✓ Has Audio
+                            </span>
+                          )}
+                          {!song.audio_url && (
+                            <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded">
+                              No Audio
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {song.audio_url && (
-                        <div className="flex flex-wrap gap-2 w-full sm:w-auto sm:justify-end">
+                      <div className="flex flex-wrap gap-2 w-full sm:w-auto sm:justify-end">
+                        {/* Edit Button */}
+                        <button
+                          type="button"
+                          onClick={() => openEditSong(song)}
+                          className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                        >
+                          <Edit size={14} />
+                          Edit
+                        </button>
+                        {song.audio_url && (
                           <button
                             type="button"
                             onClick={() => downloadFile(song.audio_url || "", `${song.title || "song"}.mp3`)}
@@ -1462,8 +1611,17 @@ export default function AdminDashboard() {
                             <Download size={14} />
                             Download
                           </button>
-                        </div>
-                      )}
+                        )}
+                        {/* Delete Button */}
+                        <button
+                          type="button"
+                          onClick={() => deleteManualSong(song.id, song.title)}
+                          className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ))}
 
@@ -1705,6 +1863,36 @@ export default function AdminDashboard() {
                             onChange={(e) => setNewSong(prev => ({ ...prev, albumName: e.target.value }))}
                             className="bg-input border-border"
                           />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Release Type</label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setNewSong(prev => ({ ...prev, releaseType: "single" }))}
+                              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                newSong.releaseType === "single"
+                                  ? "bg-purple-500 text-white"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              }`}
+                            >
+                              Single
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setNewSong(prev => ({ ...prev, releaseType: "album" }))}
+                              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                newSong.releaseType === "album"
+                                  ? "bg-blue-500 text-white"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              }`}
+                            >
+                              Album Track
+                            </button>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Singles appear individually. Album tracks are grouped by album name.
+                          </p>
                         </div>
                       </>
                     )}
@@ -2428,11 +2616,143 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       ))}
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
             )}
+
+            {/* Edit Song Modal */}
+            {showEditModal && editingSong && (
+              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="bg-card border border-border rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+                  <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card">
+                    <h3 className="text-lg font-bold">Edit Song</h3>
+                    <button onClick={() => { setShowEditModal(false); setEditingSong(null); }} className="text-muted-foreground hover:text-foreground">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    {/* Current Info */}
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
+                      <img
+                        src={editingSong.cover_url || "/placeholder.svg"}
+                        alt={editingSong.title}
+                        className="w-12 h-12 rounded object-cover"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{editingSong.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{editingSong.album_name}</p>
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Song Title *</label>
+                      <Input
+                        type="text"
+                        placeholder="Enter song title"
+                        value={editForm.title}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                        className="bg-input border-border"
+                      />
+                    </div>
+
+                    {/* Album Name */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Album Name</label>
+                      <Input
+                        type="text"
+                        placeholder="Singles"
+                        value={editForm.albumName}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, albumName: e.target.value }))}
+                        className="bg-input border-border"
+                      />
+                    </div>
+
+                    {/* Release Type */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Release Type</label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, releaseType: "single" }))}
+                          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                            editForm.releaseType === "single"
+                              ? "bg-purple-500 text-white"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          Single
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, releaseType: "album" }))}
+                          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                            editForm.releaseType === "album"
+                              ? "bg-blue-500 text-white"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          Album Track
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Replace Audio */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Replace Audio File <span className="text-muted-foreground font-normal">(optional)</span>
+                      </label>
+                      <input
+                        ref={editAudioRef}
+                        type="file"
+                        accept="audio/*"
+                        onChange={(e) => setEditForm(prev => ({ ...prev, audioFile: e.target.files?.[0] || null }))}
+                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
+                      />
+                      {editForm.audioFile && (
+                        <p className="text-xs text-green-400 mt-1">✓ New: {editForm.audioFile.name}</p>
+                      )}
+                      {!editForm.audioFile && editingSong.audio_url && (
+                        <p className="text-xs text-muted-foreground mt-1">Current audio will be kept</p>
+                      )}
+                    </div>
+
+                    {/* Replace Cover */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Replace Cover Image <span className="text-muted-foreground font-normal">(optional)</span>
+                      </label>
+                      <input
+                        ref={editCoverRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setEditForm(prev => ({ ...prev, coverFile: e.target.files?.[0] || null }))}
+                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-muted file:text-muted-foreground hover:file:bg-muted/80 file:cursor-pointer cursor-pointer"
+                      />
+                      {editForm.coverFile && (
+                        <p className="text-xs text-green-400 mt-1">✓ New: {editForm.coverFile.name}</p>
+                      )}
+                      {!editForm.coverFile && editingSong.cover_url && (
+                        <p className="text-xs text-muted-foreground mt-1">Current cover will be kept</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-6 border-t border-border flex gap-3 justify-end sticky bottom-0 bg-card">
+                    <Button variant="outline" onClick={() => { setShowEditModal(false); setEditingSong(null); }}>Cancel</Button>
+                    <Button 
+                      onClick={saveEditedSong} 
+                      disabled={savingEdit || !editForm.title.trim()}
+                      className="gap-2"
+                    >
+                      {savingEdit ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      {savingEdit ? "Saving..." : "Save Changes"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
             {/* Event Modal */}
             {showEventModal && (
