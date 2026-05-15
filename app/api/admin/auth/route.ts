@@ -6,12 +6,7 @@ export async function POST(request: NextRequest) {
     const { password } = await request.json()
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
 
-    console.log("[v0] Auth attempt - Password provided:", password)
-    console.log("[v0] Auth attempt - Expected password:", ADMIN_PASSWORD)
-    console.log("[v0] Match:", password === ADMIN_PASSWORD)
-
     if (!ADMIN_PASSWORD) {
-      console.log("[v0] No admin password configured")
       return NextResponse.json(
         { error: "Admin not configured" },
         { status: 500 }
@@ -19,14 +14,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (password !== ADMIN_PASSWORD) {
-      console.log("[v0] Password mismatch")
       return NextResponse.json(
         { error: "Invalid password" },
         { status: 401 }
       )
     }
-    
-    console.log("[v0] Auth successful")
 
     // Create a simple session token
     const sessionToken = Buffer.from(
@@ -37,8 +29,8 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies()
     cookieStore.set("admin_session", sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: false, // Allow on localhost/preview
+      sameSite: "lax", // Allow redirects to work
       maxAge: 60 * 60 * 24, // 24 hours
       path: "/",
     })
