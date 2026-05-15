@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink, ListMusic, Play, Pause, SkipBack, SkipForward, Volume2, GripVertical } from "lucide-react"
+import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink, ListMusic, Play, Pause, SkipBack, SkipForward, Volume2, GripVertical, Shuffle, Repeat, Repeat1 } from "lucide-react"
 import { upload } from "@vercel/blob/client"
 
 interface Subscriber {
@@ -193,6 +193,8 @@ export default function AdminDashboard() {
   // Playlist player state
   const [playlistPlaying, setPlaylistPlaying] = useState(false)
   const [currentPlaylistSongIndex, setCurrentPlaylistSongIndex] = useState<number>(0)
+  const [shuffleEnabled, setShuffleEnabled] = useState(false)
+  const [repeatMode, setRepeatMode] = useState<"off" | "all" | "one">("off")
   const playlistAudioRef = useRef<HTMLAudioElement>(null)
 
   // Subscribers state
@@ -1174,7 +1176,18 @@ export default function AdminDashboard() {
 
   const nextPlaylistSong = () => {
     if (!selectedPlaylist?.songs?.length) return
-    const nextIndex = (currentPlaylistSongIndex + 1) % selectedPlaylist.songs.length
+    
+    let nextIndex: number
+    if (shuffleEnabled) {
+      // Pick a random song different from current
+      const availableIndices = selectedPlaylist.songs
+        .map((_, i) => i)
+        .filter(i => i !== currentPlaylistSongIndex)
+      nextIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)] ?? 0
+    } else {
+      nextIndex = (currentPlaylistSongIndex + 1) % selectedPlaylist.songs.length
+    }
+    
     setCurrentPlaylistSongIndex(nextIndex)
     setTimeout(() => {
       playlistAudioRef.current?.play()
@@ -1190,6 +1203,30 @@ export default function AdminDashboard() {
     setTimeout(() => {
       playlistAudioRef.current?.play()
     }, 100)
+  }
+
+  const handleSongEnd = () => {
+    if (repeatMode === "one") {
+      // Repeat current song
+      playlistAudioRef.current?.play()
+    } else if (repeatMode === "all") {
+      nextPlaylistSong()
+    } else {
+      // No repeat - stop at end of playlist
+      if (selectedPlaylist?.songs && currentPlaylistSongIndex < selectedPlaylist.songs.length - 1) {
+        nextPlaylistSong()
+      } else {
+        setPlaylistPlaying(false)
+      }
+    }
+  }
+
+  const toggleRepeatMode = () => {
+    setRepeatMode(prev => {
+      if (prev === "off") return "all"
+      if (prev === "all") return "one"
+      return "off"
+    })
   }
 
   const formatDuration = (ms: number) => {
@@ -3875,71 +3912,132 @@ export default function AdminDashboard() {
               <div className="lg:col-span-2">
                 {selectedPlaylist ? (
                   <div className="bg-card border border-border rounded-lg overflow-hidden">
-                    {/* Playlist Header */}
-                    <div className="p-6 border-b border-border bg-gradient-to-b from-primary/5 to-transparent">
-                      <div className="flex items-start gap-4">
-                        <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center shrink-0">
+                    {/* Playlist Header - Mobile Optimized */}
+                    <div className="p-4 sm:p-6 border-b border-border bg-gradient-to-b from-primary/5 to-transparent">
+                      {/* Top row: Cover + Title */}
+                      <div className="flex items-start gap-3 sm:gap-4">
+                        <div className="w-16 h-16 sm:w-24 sm:h-24 bg-muted rounded-lg flex items-center justify-center shrink-0">
                           {selectedPlaylist.cover_url ? (
                             <img src={selectedPlaylist.cover_url} alt="" className="w-full h-full object-cover rounded-lg" />
                           ) : (
-                            <ListMusic size={32} className="text-muted-foreground" />
+                            <ListMusic size={24} className="text-muted-foreground sm:hidden" />
+                          )}
+                          {!selectedPlaylist.cover_url && (
+                            <ListMusic size={32} className="text-muted-foreground hidden sm:block" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-muted-foreground uppercase tracking-wide">Playlist</p>
-                          <h3 className="text-2xl font-bold truncate">{selectedPlaylist.name}</h3>
+                          <h3 className="text-lg sm:text-2xl font-bold truncate">{selectedPlaylist.name}</h3>
                           {selectedPlaylist.description && (
-                            <p className="text-muted-foreground text-sm mt-1">{selectedPlaylist.description}</p>
+                            <p className="text-muted-foreground text-sm mt-1 line-clamp-2">{selectedPlaylist.description}</p>
                           )}
-                          <p className="text-sm text-muted-foreground mt-2">
+                          <p className="text-sm text-muted-foreground mt-1">
                             {selectedPlaylist.songs?.length || 0} songs
                           </p>
                         </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            onClick={() => setShowAddSongModal(true)} 
-                            variant="outline" 
-                            size="sm"
-                            className="gap-1"
-                          >
-                            <Plus size={14} />
-                            Add Songs
-                          </Button>
-                          <Button
-                            onClick={() => deletePlaylist(selectedPlaylist.id)}
-                            variant="outline"
-                            size="sm"
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        </div>
                       </div>
 
-                      {/* Player Controls */}
+                      {/* Action buttons - stacked on mobile */}
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        <Button 
+                          onClick={() => setShowAddSongModal(true)} 
+                          variant="outline" 
+                          size="sm"
+                          className="gap-1"
+                        >
+                          <Plus size={14} />
+                          Add Songs
+                        </Button>
+                        <Button
+                          onClick={() => deletePlaylist(selectedPlaylist.id)}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                        >
+                          <Trash2 size={14} />
+                          <span className="sm:hidden ml-1">Delete</span>
+                        </Button>
+                      </div>
+
+                      {/* Player Controls - Mobile Optimized */}
                       {selectedPlaylist.songs && selectedPlaylist.songs.length > 0 && (
-                        <div className="mt-4 flex items-center gap-4">
-                          <Button 
-                            onClick={() => playlistPlaying ? pausePlaylist() : playPlaylist(currentPlaylistSongIndex)}
-                            className="gap-2"
-                          >
-                            {playlistPlaying ? <Pause size={18} /> : <Play size={18} />}
-                            {playlistPlaying ? "Pause" : "Play"}
-                          </Button>
-                          <div className="flex items-center gap-2">
-                            <button onClick={prevPlaylistSong} className="p-2 hover:bg-muted rounded-full transition-colors">
-                              <SkipBack size={18} />
+                        <div className="mt-4 space-y-3">
+                          {/* Main controls row */}
+                          <div className="flex items-center justify-between gap-2">
+                            {/* Shuffle */}
+                            <button 
+                              onClick={() => setShuffleEnabled(!shuffleEnabled)}
+                              className={`p-2 rounded-full transition-colors ${
+                                shuffleEnabled 
+                                  ? "text-primary bg-primary/20" 
+                                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                              }`}
+                              title={shuffleEnabled ? "Shuffle on" : "Shuffle off"}
+                            >
+                              <Shuffle size={18} />
                             </button>
-                            <button onClick={nextPlaylistSong} className="p-2 hover:bg-muted rounded-full transition-colors">
-                              <SkipForward size={18} />
+
+                            {/* Skip Back */}
+                            <button 
+                              onClick={prevPlaylistSong} 
+                              className="p-2 hover:bg-muted rounded-full transition-colors"
+                            >
+                              <SkipBack size={20} />
+                            </button>
+
+                            {/* Play/Pause */}
+                            <Button 
+                              onClick={() => playlistPlaying ? pausePlaylist() : playPlaylist(currentPlaylistSongIndex)}
+                              size="lg"
+                              className="rounded-full w-12 h-12 p-0"
+                            >
+                              {playlistPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
+                            </Button>
+
+                            {/* Skip Forward */}
+                            <button 
+                              onClick={nextPlaylistSong} 
+                              className="p-2 hover:bg-muted rounded-full transition-colors"
+                            >
+                              <SkipForward size={20} />
+                            </button>
+
+                            {/* Repeat */}
+                            <button 
+                              onClick={toggleRepeatMode}
+                              className={`p-2 rounded-full transition-colors ${
+                                repeatMode !== "off" 
+                                  ? "text-primary bg-primary/20" 
+                                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                              }`}
+                              title={repeatMode === "off" ? "Repeat off" : repeatMode === "all" ? "Repeat all" : "Repeat one"}
+                            >
+                              {repeatMode === "one" ? <Repeat1 size={18} /> : <Repeat size={18} />}
                             </button>
                           </div>
+
+                          {/* Now Playing */}
                           {playlistPlaying && selectedPlaylist.songs[currentPlaylistSongIndex] && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Volume2 size={16} />
-                              <span className="truncate max-w-[200px]">
-                                {selectedPlaylist.songs[currentPlaylistSongIndex].title}
-                              </span>
+                            <div className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
+                              <div className="w-8 h-8 bg-muted rounded shrink-0">
+                                {selectedPlaylist.songs[currentPlaylistSongIndex].cover_url && (
+                                  <img 
+                                    src={selectedPlaylist.songs[currentPlaylistSongIndex].cover_url || ""} 
+                                    alt="" 
+                                    className="w-full h-full object-cover rounded" 
+                                  />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {selectedPlaylist.songs[currentPlaylistSongIndex].title}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  Now Playing
+                                </p>
+                              </div>
+                              <Volume2 size={16} className="text-primary shrink-0 animate-pulse" />
                             </div>
                           )}
                         </div>
@@ -4012,7 +4110,7 @@ export default function AdminDashboard() {
                       <audio
                         ref={playlistAudioRef}
                         src={selectedPlaylist.songs[currentPlaylistSongIndex]?.audio_url || ""}
-                        onEnded={nextPlaylistSong}
+                        onEnded={handleSongEnd}
                         onPlay={() => setPlaylistPlaying(true)}
                         onPause={() => setPlaylistPlaying(false)}
                       />
