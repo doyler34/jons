@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink } from "lucide-react"
+import { Upload, Music, Image, Check, X, Loader2, Mail, Users, RefreshCw, Search, Plus, Disc, Eye, EyeOff, Calendar, MapPin, Ticket, Edit, Trash2, Settings, Globe, Link2, Save, Download, BarChart3, TrendingUp, ExternalLink, ListMusic, Play, Pause, SkipBack, SkipForward, Volume2, GripVertical } from "lucide-react"
 import { upload } from "@vercel/blob/client"
 
 interface Subscriber {
@@ -92,7 +92,7 @@ interface NewsletterStat {
 
 const EMOJI_LIST = ["🔥", "🎵", "🎤", "💿", "🎧", "⚡", "💀", "👻", "🖤", "❤️", "🚨", "📢", "🆕", "✨", "💯", "🙏"]
 
-type TabType = "music" | "newsletter" | "subscribers" | "events" | "settings" | "analytics"
+type TabType = "music" | "newsletter" | "subscribers" | "events" | "settings" | "analytics" | "playlists"
 
 export default function AdminDashboard() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
@@ -153,6 +153,47 @@ export default function AdminDashboard() {
   const [newAlbum, setNewAlbum] = useState({ name: "", coverFile: null as File | null, releaseDate: "" })
   const [creatingAlbum, setCreatingAlbum] = useState(false)
   const albumCoverRef = useRef<HTMLInputElement>(null)
+
+  // Playlist interfaces
+  interface PlaylistSong {
+    id: number
+    playlist_id: number
+    song_id: string
+    song_type: string
+    title: string
+    artist: string | null
+    album_name: string | null
+    cover_url: string | null
+    audio_url: string | null
+    duration_ms: number
+    position: number
+  }
+  
+  interface Playlist {
+    id: number
+    name: string
+    description: string | null
+    cover_url: string | null
+    song_count?: number
+    songs?: PlaylistSong[]
+    created_at: string
+    updated_at: string
+  }
+
+  // Playlist state
+  const [playlists, setPlaylists] = useState<Playlist[]>([])
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null)
+  const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false)
+  const [showAddSongModal, setShowAddSongModal] = useState(false)
+  const [newPlaylistName, setNewPlaylistName] = useState("")
+  const [newPlaylistDesc, setNewPlaylistDesc] = useState("")
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false)
+  const [playlistStatus, setPlaylistStatus] = useState<{ type: "success" | "error"; message: string } | null>(null)
+  
+  // Playlist player state
+  const [playlistPlaying, setPlaylistPlaying] = useState(false)
+  const [currentPlaylistSongIndex, setCurrentPlaylistSongIndex] = useState<number>(0)
+  const playlistAudioRef = useRef<HTMLAudioElement>(null)
 
   // Subscribers state
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
@@ -239,6 +280,7 @@ export default function AdminDashboard() {
         fetchNewsletterStats()
         fetchManualSongs()
         fetchManualAlbums()
+        fetchPlaylists()
         fetchEvents()
         fetchSettings()
       } else {
@@ -991,6 +1033,172 @@ export default function AdminDashboard() {
     }
   }
 
+  // Fetch playlists
+  const fetchPlaylists = async () => {
+    try {
+      const res = await fetch("/api/playlists")
+      if (res.ok) {
+        const data = await res.json()
+        setPlaylists(data.playlists || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch playlists:", error)
+    }
+  }
+
+  // Fetch single playlist with songs
+  const fetchPlaylistSongs = async (playlistId: number) => {
+    try {
+      const res = await fetch(`/api/playlists?id=${playlistId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setSelectedPlaylist(data.playlist)
+      }
+    } catch (error) {
+      console.error("Failed to fetch playlist songs:", error)
+    }
+  }
+
+  // Create a new playlist
+  const handleCreatePlaylist = async () => {
+    if (!newPlaylistName.trim()) {
+      setPlaylistStatus({ type: "error", message: "Playlist name is required" })
+      return
+    }
+
+    setCreatingPlaylist(true)
+    setPlaylistStatus(null)
+
+    try {
+      const res = await fetch("/api/playlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newPlaylistName,
+          description: newPlaylistDesc || null,
+        }),
+      })
+
+      if (!res.ok) throw new Error("Failed to create playlist")
+
+      setPlaylistStatus({ type: "success", message: `Playlist "${newPlaylistName}" created!` })
+      setShowCreatePlaylistModal(false)
+      setNewPlaylistName("")
+      setNewPlaylistDesc("")
+      fetchPlaylists()
+    } catch (error) {
+      console.error("Create playlist error:", error)
+      setPlaylistStatus({ type: "error", message: "Failed to create playlist" })
+    } finally {
+      setCreatingPlaylist(false)
+    }
+  }
+
+  // Add song to playlist
+  const addSongToPlaylist = async (song: {
+    song_id: string
+    song_type: string
+    title: string
+    artist?: string
+    album_name?: string
+    cover_url?: string
+    audio_url?: string
+    duration_ms?: number
+  }) => {
+    if (!selectedPlaylist) return
+
+    try {
+      const res = await fetch("/api/playlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playlist_id: selectedPlaylist.id,
+          song,
+        }),
+      })
+
+      if (!res.ok) throw new Error("Failed to add song")
+
+      setPlaylistStatus({ type: "success", message: `Added "${song.title}" to playlist` })
+      fetchPlaylistSongs(selectedPlaylist.id)
+      setShowAddSongModal(false)
+    } catch (error) {
+      console.error("Add song error:", error)
+      setPlaylistStatus({ type: "error", message: "Failed to add song" })
+    }
+  }
+
+  // Remove song from playlist
+  const removeSongFromPlaylist = async (songId: number) => {
+    if (!selectedPlaylist) return
+
+    try {
+      await fetch(`/api/playlists?playlist_id=${selectedPlaylist.id}&song_id=${songId}`, {
+        method: "DELETE",
+      })
+      fetchPlaylistSongs(selectedPlaylist.id)
+    } catch (error) {
+      console.error("Remove song error:", error)
+    }
+  }
+
+  // Delete playlist
+  const deletePlaylist = async (playlistId: number) => {
+    if (!confirm("Delete this playlist? This cannot be undone.")) return
+
+    try {
+      await fetch(`/api/playlists?playlist_id=${playlistId}`, { method: "DELETE" })
+      setSelectedPlaylist(null)
+      fetchPlaylists()
+      setPlaylistStatus({ type: "success", message: "Playlist deleted" })
+    } catch (error) {
+      console.error("Delete playlist error:", error)
+      setPlaylistStatus({ type: "error", message: "Failed to delete playlist" })
+    }
+  }
+
+  // Playlist player controls
+  const playPlaylist = (startIndex: number = 0) => {
+    if (!selectedPlaylist?.songs?.length) return
+    setCurrentPlaylistSongIndex(startIndex)
+    setPlaylistPlaying(true)
+    setTimeout(() => {
+      playlistAudioRef.current?.play()
+    }, 100)
+  }
+
+  const pausePlaylist = () => {
+    setPlaylistPlaying(false)
+    playlistAudioRef.current?.pause()
+  }
+
+  const nextPlaylistSong = () => {
+    if (!selectedPlaylist?.songs?.length) return
+    const nextIndex = (currentPlaylistSongIndex + 1) % selectedPlaylist.songs.length
+    setCurrentPlaylistSongIndex(nextIndex)
+    setTimeout(() => {
+      playlistAudioRef.current?.play()
+    }, 100)
+  }
+
+  const prevPlaylistSong = () => {
+    if (!selectedPlaylist?.songs?.length) return
+    const prevIndex = currentPlaylistSongIndex === 0 
+      ? selectedPlaylist.songs.length - 1 
+      : currentPlaylistSongIndex - 1
+    setCurrentPlaylistSongIndex(prevIndex)
+    setTimeout(() => {
+      playlistAudioRef.current?.play()
+    }, 100)
+  }
+
+  const formatDuration = (ms: number) => {
+    if (!ms) return "—"
+    const minutes = Math.floor(ms / 60000)
+    const seconds = Math.floor((ms % 60000) / 1000)
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`
+  }
+
   // Create a new album
   const handleCreateAlbum = async () => {
     if (!newAlbum.name.trim()) {
@@ -1447,6 +1655,18 @@ export default function AdminDashboard() {
               <Music size={18} />
               Music Library
               <span className="bg-muted px-2 py-0.5 rounded text-xs">{totalTracks}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("playlists")}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors shrink-0 ${
+                activeTab === "playlists"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <ListMusic size={18} />
+              Playlists
+              <span className="bg-muted px-2 py-0.5 rounded text-xs">{playlists.length}</span>
             </button>
             <button
               onClick={() => setActiveTab("newsletter")}
@@ -3575,6 +3795,408 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* PLAYLISTS TAB */}
+        {activeTab === "playlists" && (
+          <div className="space-y-6">
+            {/* Status Message */}
+            {playlistStatus && (
+              <div className={`p-4 rounded-lg ${
+                playlistStatus.type === "error" 
+                  ? "bg-red-500/10 border border-red-500/30 text-red-400" 
+                  : "bg-green-500/10 border border-green-500/30 text-green-400"
+              }`}>
+                {playlistStatus.message}
+              </div>
+            )}
+
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Personal Playlists</h2>
+                <p className="text-muted-foreground text-sm">Create playlists for quick access at venues and events</p>
+              </div>
+              <Button onClick={() => setShowCreatePlaylistModal(true)} className="gap-2">
+                <Plus size={16} />
+                New Playlist
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Playlist List */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Your Playlists</h3>
+                {playlists.length === 0 ? (
+                  <div className="bg-card border border-border rounded-lg p-8 text-center">
+                    <ListMusic size={40} className="mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground">No playlists yet</p>
+                    <Button 
+                      onClick={() => setShowCreatePlaylistModal(true)} 
+                      variant="outline" 
+                      className="mt-4"
+                    >
+                      Create Your First Playlist
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {playlists.map((playlist) => (
+                      <button
+                        key={playlist.id}
+                        onClick={() => fetchPlaylistSongs(playlist.id)}
+                        className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                          selectedPlaylist?.id === playlist.id
+                            ? "bg-primary/10 border-primary"
+                            : "bg-card border-border hover:bg-muted/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-muted rounded flex items-center justify-center shrink-0">
+                            {playlist.cover_url ? (
+                              <img src={playlist.cover_url} alt="" className="w-full h-full object-cover rounded" />
+                            ) : (
+                              <ListMusic size={20} className="text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{playlist.name}</p>
+                            <p className="text-sm text-muted-foreground">{playlist.song_count || 0} songs</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Playlist Detail & Player */}
+              <div className="lg:col-span-2">
+                {selectedPlaylist ? (
+                  <div className="bg-card border border-border rounded-lg overflow-hidden">
+                    {/* Playlist Header */}
+                    <div className="p-6 border-b border-border bg-gradient-to-b from-primary/5 to-transparent">
+                      <div className="flex items-start gap-4">
+                        <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center shrink-0">
+                          {selectedPlaylist.cover_url ? (
+                            <img src={selectedPlaylist.cover_url} alt="" className="w-full h-full object-cover rounded-lg" />
+                          ) : (
+                            <ListMusic size={32} className="text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">Playlist</p>
+                          <h3 className="text-2xl font-bold truncate">{selectedPlaylist.name}</h3>
+                          {selectedPlaylist.description && (
+                            <p className="text-muted-foreground text-sm mt-1">{selectedPlaylist.description}</p>
+                          )}
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {selectedPlaylist.songs?.length || 0} songs
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => setShowAddSongModal(true)} 
+                            variant="outline" 
+                            size="sm"
+                            className="gap-1"
+                          >
+                            <Plus size={14} />
+                            Add Songs
+                          </Button>
+                          <Button
+                            onClick={() => deletePlaylist(selectedPlaylist.id)}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Player Controls */}
+                      {selectedPlaylist.songs && selectedPlaylist.songs.length > 0 && (
+                        <div className="mt-4 flex items-center gap-4">
+                          <Button 
+                            onClick={() => playlistPlaying ? pausePlaylist() : playPlaylist(currentPlaylistSongIndex)}
+                            className="gap-2"
+                          >
+                            {playlistPlaying ? <Pause size={18} /> : <Play size={18} />}
+                            {playlistPlaying ? "Pause" : "Play"}
+                          </Button>
+                          <div className="flex items-center gap-2">
+                            <button onClick={prevPlaylistSong} className="p-2 hover:bg-muted rounded-full transition-colors">
+                              <SkipBack size={18} />
+                            </button>
+                            <button onClick={nextPlaylistSong} className="p-2 hover:bg-muted rounded-full transition-colors">
+                              <SkipForward size={18} />
+                            </button>
+                          </div>
+                          {playlistPlaying && selectedPlaylist.songs[currentPlaylistSongIndex] && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Volume2 size={16} />
+                              <span className="truncate max-w-[200px]">
+                                {selectedPlaylist.songs[currentPlaylistSongIndex].title}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Song List */}
+                    <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
+                      {!selectedPlaylist.songs || selectedPlaylist.songs.length === 0 ? (
+                        <div className="p-8 text-center">
+                          <Music size={32} className="mx-auto text-muted-foreground mb-3" />
+                          <p className="text-muted-foreground">No songs in this playlist</p>
+                          <Button 
+                            onClick={() => setShowAddSongModal(true)} 
+                            variant="outline" 
+                            className="mt-4"
+                          >
+                            Add Songs
+                          </Button>
+                        </div>
+                      ) : (
+                        selectedPlaylist.songs.map((song, index) => (
+                          <div 
+                            key={song.id}
+                            className={`flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors ${
+                              playlistPlaying && currentPlaylistSongIndex === index ? "bg-primary/10" : ""
+                            }`}
+                          >
+                            <button 
+                              onClick={() => playPlaylist(index)}
+                              className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                            >
+                              {playlistPlaying && currentPlaylistSongIndex === index ? (
+                                <Pause size={16} />
+                              ) : (
+                                <span className="text-sm">{index + 1}</span>
+                              )}
+                            </button>
+                            <div className="w-10 h-10 bg-muted rounded shrink-0">
+                              {song.cover_url && (
+                                <img src={song.cover_url} alt="" className="w-full h-full object-cover rounded" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-medium truncate ${
+                                playlistPlaying && currentPlaylistSongIndex === index ? "text-primary" : ""
+                              }`}>
+                                {song.title}
+                              </p>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {song.album_name || "Unknown Album"}
+                              </p>
+                            </div>
+                            <span className="text-sm text-muted-foreground shrink-0">
+                              {formatDuration(song.duration_ms)}
+                            </span>
+                            <button
+                              onClick={() => removeSongFromPlaylist(song.id)}
+                              className="p-2 text-muted-foreground hover:text-red-400 transition-colors"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Hidden Audio Element */}
+                    {selectedPlaylist.songs && selectedPlaylist.songs.length > 0 && (
+                      <audio
+                        ref={playlistAudioRef}
+                        src={selectedPlaylist.songs[currentPlaylistSongIndex]?.audio_url || ""}
+                        onEnded={nextPlaylistSong}
+                        onPlay={() => setPlaylistPlaying(true)}
+                        onPause={() => setPlaylistPlaying(false)}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-card border border-border rounded-lg p-12 text-center">
+                    <ListMusic size={48} className="mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Select a Playlist</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Choose a playlist from the left to view and manage its songs
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Create Playlist Modal */}
+            {showCreatePlaylistModal && (
+              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="bg-card border border-border rounded-lg w-full max-w-md">
+                  <div className="p-6 border-b border-border flex items-center justify-between">
+                    <h3 className="text-lg font-bold">Create Playlist</h3>
+                    <button onClick={() => setShowCreatePlaylistModal(false)} className="text-muted-foreground hover:text-foreground">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Playlist Name *</label>
+                      <Input
+                        type="text"
+                        placeholder="My Playlist"
+                        value={newPlaylistName}
+                        onChange={(e) => setNewPlaylistName(e.target.value)}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Description <span className="text-muted-foreground font-normal">(optional)</span></label>
+                      <Input
+                        type="text"
+                        placeholder="Playlist description..."
+                        value={newPlaylistDesc}
+                        onChange={(e) => setNewPlaylistDesc(e.target.value)}
+                        className="bg-input border-border"
+                      />
+                    </div>
+                  </div>
+                  <div className="p-6 border-t border-border flex gap-3 justify-end">
+                    <Button variant="outline" onClick={() => setShowCreatePlaylistModal(false)}>Cancel</Button>
+                    <Button 
+                      onClick={handleCreatePlaylist} 
+                      disabled={creatingPlaylist || !newPlaylistName.trim()}
+                      className="gap-2"
+                    >
+                      {creatingPlaylist ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                      {creatingPlaylist ? "Creating..." : "Create Playlist"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Add Song Modal */}
+            {showAddSongModal && selectedPlaylist && (
+              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="bg-card border border-border rounded-lg w-full max-w-2xl max-h-[80vh] overflow-hidden">
+                  <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card">
+                    <h3 className="text-lg font-bold">Add Songs to &quot;{selectedPlaylist.name}&quot;</h3>
+                    <button onClick={() => setShowAddSongModal(false)} className="text-muted-foreground hover:text-foreground">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="p-6 overflow-y-auto max-h-[60vh]">
+                    {/* Manual Songs Section */}
+                    {manualSongs.length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                          Manual Uploads ({manualSongs.length})
+                        </h4>
+                        <div className="space-y-2">
+                          {manualSongs.filter(s => s.audio_url).map((song) => (
+                            <div key={song.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
+                              <div className="w-10 h-10 bg-muted rounded shrink-0">
+                                {song.cover_url && (
+                                  <img src={song.cover_url} alt="" className="w-full h-full object-cover rounded" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{song.title}</p>
+                                <p className="text-sm text-muted-foreground truncate">{song.album_name}</p>
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={() => addSongToPlaylist({
+                                  song_id: `manual-${song.id}`,
+                                  song_type: "manual",
+                                  title: song.title,
+                                  album_name: song.album_name,
+                                  cover_url: song.cover_url || undefined,
+                                  audio_url: song.audio_url,
+                                  duration_ms: song.duration_ms,
+                                })}
+                              >
+                                <Plus size={14} />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Spotify Songs Section */}
+                    {albums.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                          Spotify Library
+                        </h4>
+                        {albums.map((album) => (
+                          <div key={album.id} className="mb-4">
+                            <p className="text-sm font-medium mb-2 text-muted-foreground">{album.name}</p>
+                            <div className="space-y-2">
+                              {album.tracks?.filter(t => {
+                                const override = songOverrides[t.id]
+                                return override?.audio_url || t.preview_url
+                              }).map((track) => {
+                                const override = songOverrides[track.id]
+                                return (
+                                  <div key={track.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
+                                    <div className="w-10 h-10 bg-muted rounded shrink-0">
+                                      {(override?.cover_url || album.images?.[0]?.url) && (
+                                        <img 
+                                          src={override?.cover_url || album.images?.[0]?.url} 
+                                          alt="" 
+                                          className="w-full h-full object-cover rounded" 
+                                        />
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium truncate">{track.name}</p>
+                                      <p className="text-sm text-muted-foreground truncate">{album.name}</p>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => addSongToPlaylist({
+                                        song_id: track.id,
+                                        song_type: "spotify",
+                                        title: track.name,
+                                        album_name: album.name,
+                                        cover_url: override?.cover_url || album.images?.[0]?.url,
+                                        audio_url: override?.audio_url || track.preview_url || undefined,
+                                        duration_ms: track.duration_ms,
+                                      })}
+                                    >
+                                      <Plus size={14} />
+                                    </Button>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {manualSongs.length === 0 && albums.length === 0 && (
+                      <div className="text-center py-8">
+                        <Music size={32} className="mx-auto text-muted-foreground mb-3" />
+                        <p className="text-muted-foreground">No songs available</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Upload songs in the Music Library first
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-6 border-t border-border">
+                    <Button variant="outline" onClick={() => setShowAddSongModal(false)} className="w-full">
+                      Done
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
