@@ -119,7 +119,7 @@ export default function MusicPage() {
               album: {
                 id: `manual-album-${albumName}`,
                 name: song.release_type === 'album' ? albumName : song.title, // Singles show song title as album name
-                images: song.cover_url ? [{ url: song.cover_url, height: 300, width: 300 }] : [],
+                images: song.cover_url ? [{ url: song.cover_url }] : [],
               },
               external_urls: {
                 spotify: "#",
@@ -129,38 +129,38 @@ export default function MusicPage() {
             // For singles, create individual album entries for each song
             if (albumName === 'Singles') {
               songs.forEach((song: ManualSong) => {
-                albumsList.push({
-                  id: `manual-single-${song.id}`,
+              albumsList.push({
+                id: `manual-single-${song.id}`,
+                name: song.title,
+                images: song.cover_url ? [{ url: song.cover_url }] : [],
+                release_date: song.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+                total_tracks: 1,
+                external_urls: {
+                  spotify: "#",
+                },
+                tracks: [{
+                  id: `manual-${song.id}`,
                   name: song.title,
-                  images: song.cover_url ? [{ url: song.cover_url, height: 300, width: 300 }] : [],
-                  release_date: song.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
-                  total_tracks: 1,
+                  duration_ms: song.duration_ms || 0,
+                  preview_url: song.audio_url,
+                  track_number: 1,
+                  album: {
+                    id: `manual-single-${song.id}`,
+                    name: song.title,
+                    images: song.cover_url ? [{ url: song.cover_url }] : [],
+                  },
                   external_urls: {
                     spotify: "#",
                   },
-                  tracks: [{
-                    id: `manual-${song.id}`,
-                    name: song.title,
-                    duration_ms: song.duration_ms || 0,
-                    preview_url: song.audio_url,
-                    track_number: 1,
-                    album: {
-                      id: `manual-single-${song.id}`,
-                      name: song.title,
-                      images: song.cover_url ? [{ url: song.cover_url, height: 300, width: 300 }] : [],
-                    },
-                    external_urls: {
-                      spotify: "#",
-                    },
-                  }],
-                })
+                }],
+              })
               })
             } else {
               // For albums, create one album with all songs
               albumsList.push({
                 id: `manual-album-${albumName}`,
                 name: albumName,
-                images: songs[0]?.cover_url ? [{ url: songs[0].cover_url, height: 300, width: 300 }] : [],
+                images: songs[0]?.cover_url ? [{ url: songs[0].cover_url }] : [],
                 release_date: songs[0]?.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
                 total_tracks: songs.length,
                 external_urls: {
