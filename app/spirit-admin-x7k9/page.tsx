@@ -1596,7 +1596,11 @@ export default function AdminDashboard() {
                         {/* Edit Button */}
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); openEditSong(song); }}
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            e.preventDefault(); 
+                            openEditSong(song); 
+                          }}
                           className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
                         >
                           <Edit size={14} />
@@ -1949,6 +1953,138 @@ export default function AdminDashboard() {
                     >
                       {uploadingNewSong ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                       {uploadingNewSong ? "Uploading..." : newSong.isOverride ? "Override" : "Upload"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Edit Song Modal */}
+            {showEditModal && editingSong && (
+              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="bg-card border border-border rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+                  <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card">
+                    <h3 className="text-lg font-bold">Edit Song</h3>
+                    <button onClick={() => { setShowEditModal(false); setEditingSong(null); }} className="text-muted-foreground hover:text-foreground">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    {/* Current Info */}
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
+                      <img
+                        src={editingSong.cover_url || "/placeholder.svg"}
+                        alt={editingSong.title}
+                        className="w-12 h-12 rounded object-cover"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{editingSong.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{editingSong.album_name}</p>
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Song Title *</label>
+                      <Input
+                        type="text"
+                        placeholder="Enter song title"
+                        value={editForm.title}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                        className="bg-input border-border"
+                      />
+                    </div>
+
+                    {/* Album Name */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Album Name</label>
+                      <Input
+                        type="text"
+                        placeholder="Singles"
+                        value={editForm.albumName}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, albumName: e.target.value }))}
+                        className="bg-input border-border"
+                      />
+                    </div>
+
+                    {/* Release Type */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Release Type</label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, releaseType: "single" }))}
+                          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                            editForm.releaseType === "single"
+                              ? "bg-purple-500 text-white"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          Single
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, releaseType: "album" }))}
+                          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                            editForm.releaseType === "album"
+                              ? "bg-blue-500 text-white"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          Album Track
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Replace Audio */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Replace Audio File <span className="text-muted-foreground font-normal">(optional)</span>
+                      </label>
+                      <input
+                        ref={editAudioRef}
+                        type="file"
+                        accept="audio/*"
+                        onChange={(e) => setEditForm(prev => ({ ...prev, audioFile: e.target.files?.[0] || null }))}
+                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
+                      />
+                      {editForm.audioFile && (
+                        <p className="text-xs text-green-400 mt-1">New: {editForm.audioFile.name}</p>
+                      )}
+                      {!editForm.audioFile && editingSong.audio_url && (
+                        <p className="text-xs text-muted-foreground mt-1">Current audio will be kept</p>
+                      )}
+                    </div>
+
+                    {/* Replace Cover */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Replace Cover Image <span className="text-muted-foreground font-normal">(optional)</span>
+                      </label>
+                      <input
+                        ref={editCoverRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setEditForm(prev => ({ ...prev, coverFile: e.target.files?.[0] || null }))}
+                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-muted file:text-muted-foreground hover:file:bg-muted/80 file:cursor-pointer cursor-pointer"
+                      />
+                      {editForm.coverFile && (
+                        <p className="text-xs text-green-400 mt-1">New: {editForm.coverFile.name}</p>
+                      )}
+                      {!editForm.coverFile && editingSong.cover_url && (
+                        <p className="text-xs text-muted-foreground mt-1">Current cover will be kept</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-6 border-t border-border flex gap-3 justify-end sticky bottom-0 bg-card">
+                    <Button variant="outline" onClick={() => { setShowEditModal(false); setEditingSong(null); }}>Cancel</Button>
+                    <Button 
+                      onClick={saveEditedSong} 
+                      disabled={savingEdit || !editForm.title.trim()}
+                      className="gap-2"
+                    >
+                      {savingEdit ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      {savingEdit ? "Saving..." : "Save Changes"}
                     </Button>
                   </div>
                 </div>
@@ -2616,138 +2752,6 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       ))}
-                </div>
-              </div>
-            )}
-
-            {/* Edit Song Modal */}
-            {showEditModal && editingSong && (
-              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                <div className="bg-card border border-border rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-                  <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card">
-                    <h3 className="text-lg font-bold">Edit Song</h3>
-                    <button onClick={() => { setShowEditModal(false); setEditingSong(null); }} className="text-muted-foreground hover:text-foreground">
-                      <X size={20} />
-                    </button>
-                  </div>
-                  <div className="p-6 space-y-4">
-                    {/* Current Info */}
-                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
-                      <img
-                        src={editingSong.cover_url || "/placeholder.svg"}
-                        alt={editingSong.title}
-                        className="w-12 h-12 rounded object-cover"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{editingSong.title}</p>
-                        <p className="text-xs text-muted-foreground truncate">{editingSong.album_name}</p>
-                      </div>
-                    </div>
-
-                    {/* Title */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Song Title *</label>
-                      <Input
-                        type="text"
-                        placeholder="Enter song title"
-                        value={editForm.title}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
-                        className="bg-input border-border"
-                      />
-                    </div>
-
-                    {/* Album Name */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Album Name</label>
-                      <Input
-                        type="text"
-                        placeholder="Singles"
-                        value={editForm.albumName}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, albumName: e.target.value }))}
-                        className="bg-input border-border"
-                      />
-                    </div>
-
-                    {/* Release Type */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Release Type</label>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setEditForm(prev => ({ ...prev, releaseType: "single" }))}
-                          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                            editForm.releaseType === "single"
-                              ? "bg-purple-500 text-white"
-                              : "bg-muted text-muted-foreground hover:bg-muted/80"
-                          }`}
-                        >
-                          Single
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditForm(prev => ({ ...prev, releaseType: "album" }))}
-                          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                            editForm.releaseType === "album"
-                              ? "bg-blue-500 text-white"
-                              : "bg-muted text-muted-foreground hover:bg-muted/80"
-                          }`}
-                        >
-                          Album Track
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Replace Audio */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Replace Audio File <span className="text-muted-foreground font-normal">(optional)</span>
-                      </label>
-                      <input
-                        ref={editAudioRef}
-                        type="file"
-                        accept="audio/*"
-                        onChange={(e) => setEditForm(prev => ({ ...prev, audioFile: e.target.files?.[0] || null }))}
-                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
-                      />
-                      {editForm.audioFile && (
-                        <p className="text-xs text-green-400 mt-1">✓ New: {editForm.audioFile.name}</p>
-                      )}
-                      {!editForm.audioFile && editingSong.audio_url && (
-                        <p className="text-xs text-muted-foreground mt-1">Current audio will be kept</p>
-                      )}
-                    </div>
-
-                    {/* Replace Cover */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Replace Cover Image <span className="text-muted-foreground font-normal">(optional)</span>
-                      </label>
-                      <input
-                        ref={editCoverRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setEditForm(prev => ({ ...prev, coverFile: e.target.files?.[0] || null }))}
-                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-muted file:text-muted-foreground hover:file:bg-muted/80 file:cursor-pointer cursor-pointer"
-                      />
-                      {editForm.coverFile && (
-                        <p className="text-xs text-green-400 mt-1">✓ New: {editForm.coverFile.name}</p>
-                      )}
-                      {!editForm.coverFile && editingSong.cover_url && (
-                        <p className="text-xs text-muted-foreground mt-1">Current cover will be kept</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-6 border-t border-border flex gap-3 justify-end sticky bottom-0 bg-card">
-                    <Button variant="outline" onClick={() => { setShowEditModal(false); setEditingSong(null); }}>Cancel</Button>
-                    <Button 
-                      onClick={saveEditedSong} 
-                      disabled={savingEdit || !editForm.title.trim()}
-                      className="gap-2"
-                    >
-                      {savingEdit ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                      {savingEdit ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </div>
                 </div>
               </div>
             )}
