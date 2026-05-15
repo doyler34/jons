@@ -217,7 +217,14 @@ export default function AdminDashboard() {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch("/api/admin/auth")
+      const token = localStorage.getItem("admin_token")
+      if (!token) {
+        router.push("/spirit-admin-x7k9/login")
+        return
+      }
+      const response = await fetch("/api/admin/auth", {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
       if (response.ok) {
         setAuthenticated(true)
         fetchMusic()
@@ -227,6 +234,7 @@ export default function AdminDashboard() {
         fetchEvents()
         fetchSettings()
       } else {
+        localStorage.removeItem("admin_token")
         router.push("/spirit-admin-x7k9/login")
       }
     } catch {
@@ -427,7 +435,13 @@ export default function AdminDashboard() {
   }
 
   const handleLogout = async () => {
-    await fetch("/api/admin/auth", { method: "DELETE" })
+    const token = localStorage.getItem("admin_token")
+    localStorage.removeItem("admin_token")
+    await fetch("/api/admin/auth", { 
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token })
+    })
     router.push("/spirit-admin-x7k9/login")
   }
 

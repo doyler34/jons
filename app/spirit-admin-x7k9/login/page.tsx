@@ -23,10 +23,13 @@ export default function AdminLogin() {
         body: JSON.stringify({ password }),
       })
 
-      if (response.ok) {
+      const data = await response.json()
+
+      if (response.ok && data.token) {
+        // Store token in localStorage
+        localStorage.setItem("admin_token", data.token)
         router.push("/spirit-admin-x7k9")
       } else {
-        const data = await response.json()
         setError(data.error || "Invalid password")
       }
     } catch {
@@ -70,12 +73,3 @@ export default function AdminLogin() {
     </div>
   )
 }
-
-
-
-
-
-
-
-
-
