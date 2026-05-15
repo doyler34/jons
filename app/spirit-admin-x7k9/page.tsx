@@ -4137,10 +4137,10 @@ export default function AdminDashboard() {
                             <p className="text-sm font-medium mb-2 text-muted-foreground">{album.name}</p>
                             <div className="space-y-2">
                               {album.tracks?.filter(t => {
-                                const override = songOverrides[t.id]
+                                const override = overrides[t.id]
                                 return override?.audio_url || t.preview_url
                               }).map((track) => {
-                                const override = songOverrides[track.id]
+                                const override = overrides[track.id]
                                 return (
                                   <div key={track.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
                                     <div className="w-10 h-10 bg-muted rounded shrink-0">
