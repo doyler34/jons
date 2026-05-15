@@ -1596,7 +1596,7 @@ export default function AdminDashboard() {
                         {/* Edit Button */}
                         <button
                           type="button"
-                          onClick={() => openEditSong(song)}
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); openEditSong(song); }}
                           className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
                         >
                           <Edit size={14} />
@@ -1605,7 +1605,7 @@ export default function AdminDashboard() {
                         {song.audio_url && (
                           <button
                             type="button"
-                            onClick={() => downloadFile(song.audio_url || "", `${song.title || "song"}.mp3`)}
+                            onClick={(e) => { e.stopPropagation(); downloadFile(song.audio_url || "", `${song.title || "song"}.mp3`); }}
                             className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
                           >
                             <Download size={14} />
@@ -1615,7 +1615,7 @@ export default function AdminDashboard() {
                         {/* Delete Button */}
                         <button
                           type="button"
-                          onClick={() => deleteManualSong(song.id, song.title)}
+                          onClick={(e) => { e.stopPropagation(); deleteManualSong(song.id, song.title); }}
                           className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
                         >
                           <Trash2 size={14} />
